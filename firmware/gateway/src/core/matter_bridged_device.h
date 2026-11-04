@@ -112,6 +112,7 @@ public:
 		BridgedNode = 0x0013,
 		OnOffLight = 0x0100,
 		OnOffLightSwitch = 0x0103,
+		Thermostat = 0x0301,
 		TemperatureSensor = 0x0302,
 		HumiditySensor = 0x0307,
 		GenericSwitch = 0x000F

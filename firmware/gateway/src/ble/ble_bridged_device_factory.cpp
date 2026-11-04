@@ -250,6 +250,15 @@ BleBridgedDeviceFactory::BridgedDeviceFactory &BleBridgedDeviceFactory::GetBridg
 	};
 
 	static BridgedDeviceFactory sBridgedDeviceFactory{
+		/* eQ-3 thermostats, bridged from their BTHome broadcasts. */
+		{ MatterBridgedDevice::DeviceType::Thermostat,
+		  [checkUniqueID, checkLabel](const char *uniqueID,
+					      const char *nodeLabel) -> Nrf::MatterBridgedDevice * {
+			  if (!checkUniqueID(uniqueID) || !checkLabel(nodeLabel)) {
+				  return nullptr;
+			  }
+			  return chip::Platform::New<ThermostatDevice>(uniqueID, nodeLabel);
+		  } },
 #ifdef CONFIG_BRIDGE_HUMIDITY_SENSOR_BRIDGED_DEVICE
 		{ MatterBridgedDevice::DeviceType::HumiditySensor,
 		  [checkUniqueID, checkLabel](const char *uniqueID,

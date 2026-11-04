@@ -1,6 +1,7 @@
 /*
- * Data provider for one advertisement-only BTHome sensor. It is shared by the
- * sensor's Temperature Sensor and Humidity Sensor endpoints.
+ * Data provider for one advertisement-only BTHome device. It is shared by a
+ * sensor's Temperature Sensor and Humidity Sensor endpoints, or serves the
+ * Thermostat endpoint of an eQ-3 thermostat (eq3-custom-fw).
  *
  * All methods run in the Matter (CHIP) thread.
  */
@@ -44,7 +45,10 @@ public:
 	uint8_t GetBattery() const { return mBattery; }
 
 private:
-	void UpdateBattery(uint8_t percent);
+	void UpdateBattery(uint8_t percent, bool low = false);
+	void UpdateThermostat(const bthome_reading &reading);
+	void NotifyIfChanged(chip::ClusterId clusterId, chip::AttributeId attributeId, int32_t &last, int32_t value,
+			     size_t size);
 
 	bt_addr_le_t mAddr;
 	bool mReachable = true; /* matches the default of MatterBridgedDevice */
@@ -57,6 +61,14 @@ private:
 	bool mHasBattery = false;
 	uint8_t mBattery = 0; /* % */
 	uint8_t mBatteryLevel = 0; /* PowerSource::BatChargeLevelEnum */
+
+	/* Last values reported to the Thermostat cluster; kNotReported until the first one. */
+	static constexpr int32_t kNotReported = INT32_MIN;
+	int32_t mLocalTemperature = kNotReported;
+	int32_t mSetpoint = kNotReported;
+	int32_t mSystemMode = kNotReported;
+	int32_t mHeatingDemand = kNotReported;
+	bool mBatteryLow = false;
 };
 
 } /* namespace Gateway */

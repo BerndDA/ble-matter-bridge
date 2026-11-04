@@ -4,7 +4,6 @@ What's left to do and to decide. Tick items off here; the plan behind the steps 
 
 ## Decisions
 
-- [ ] **Thermostat model.** This decides step 4. For eQ-3 thermostats, Tasmota's driver documents the GATT protocol; other brands need reverse engineering.
 - [ ] **Far sensors.** The sensor in the other room delivers about 1 % of its advertisements, with gaps of up to 6.5 minutes ([measurements](doc/measurements.md)). Options:
   - Place the gateway more centrally (no code change).
   - Have pvvx advertise more often, for example every 1 s (costs sensor battery).
@@ -13,13 +12,15 @@ What's left to do and to decide. Tick items off here; the plan behind the steps 
 
 ## Next
 
-- [ ] Step 4, once the thermostat model is decided.
+- [ ] Step 4: setting the temperature from Apple Home (writes over GATT).
 
 ## Step 4: one thermostat
 
-- [ ] Find the GATT protocol for the chosen model.
-- [ ] Connect on demand with bonding; keys stored on the gateway.
-- [ ] Thermostat endpoint (cluster 0x0201): LocalTemperature, OccupiedHeatingSetpoint, SystemMode, battery.
+- [x] eQ-3 CC-RT-BLE with [eq3-custom-fw](https://github.com/dbuezas/eq3-custom-fw): values come from BTHome broadcasts, control over GATT ([spike/eq3-flash](spike/eq3-flash/README.md), protocol in the firmware's PROTOCOL.md).
+- [x] Thermostat endpoint (cluster 0x0201), read-only: room temperature, target, valve as heating demand, Off below 4.75 °C, battery from voltage and low flag.
+- [ ] Check it in Apple Home.
+- [ ] Setpoint and mode writes: connect on demand, no PIN (off by default on eq3-custom-fw; decide whether to turn it on and bond).
+- [ ] Map eQ-3 modes (auto, manual, holiday, boost) and decide what Apple Home shows for them.
 - [ ] Command queue ahead of routine polls, with a timeout per connection attempt.
 - [ ] Measure again (step 5) with the thermostat connected.
 
@@ -40,3 +41,4 @@ What's left to do and to decide. Tick items off here; the plan behind the steps 
 - [x] System work queue stack raised to 1536 B
 - [x] Step 5, first round: RAM, flash and radio measured with two sensors
 - [x] Sensors decided: pvvx firmware with BTHome v2, unencrypted
+- [x] Thermostat decided: eQ-3 CC-RT-BLE with eq3-custom-fw

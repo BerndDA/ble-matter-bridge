@@ -50,9 +50,9 @@ void FormatUniqueId(const bt_addr_le_t &addr, char *out, size_t len)
 }
 
 /* "Sensor 54AA": the last two address bytes, like the name pvvx firmware advertises. */
-void FormatNodeLabel(const bt_addr_le_t &addr, char *out, size_t len)
+void FormatNodeLabel(const bt_addr_le_t &addr, bool thermostat, char *out, size_t len)
 {
-	snprintk(out, len, "Sensor %02X%02X", addr.a.val[1], addr.a.val[0]);
+	snprintk(out, len, "%s %02X%02X", thermostat ? "Thermostat" : "Sensor", addr.a.val[1], addr.a.val[0]);
 }
 
 CHIP_ERROR StoreDevice(MatterBridgedDevice *device, const bt_addr_le_t &addr, uint8_t index)
@@ -194,7 +194,9 @@ void BTHomeSensorManager::HandleReading(const bt_addr_le_t &addr, const bthome_r
 		if (!(reading.fields & (BTHOME_HAS_TEMPERATURE | BTHOME_HAS_HUMIDITY))) {
 			return;
 		}
-		if (AddSensor(addr, sensor) != CHIP_NO_ERROR) {
+		/* eQ-3 thermostats send the room temperature together with thermostat-only objects. */
+		const bool thermostat = (reading.fields & BTHOME_THERMOSTAT_FIELDS) != 0;
+		if (AddSensor(addr, thermostat, sensor) != CHIP_NO_ERROR) {
 			return;
 		}
 	}
@@ -202,7 +204,7 @@ void BTHomeSensorManager::HandleReading(const bt_addr_le_t &addr, const bthome_r
 	sensor->mProvider->OnReading(reading, k_uptime_get());
 }
 
-CHIP_ERROR BTHomeSensorManager::AddSensor(const bt_addr_le_t &addr, Sensor *&sensor)
+CHIP_ERROR BTHomeSensorManager::AddSensor(const bt_addr_le_t &addr, bool thermostat, Sensor *&sensor)
 {
 	char uniqueId[MatterBridgedDevice::kUniqueIDSize];
 	char label[MatterBridgedDevice::kNodeLabelSize];
@@ -220,16 +222,21 @@ CHIP_ERROR BTHomeSensorManager::AddSensor(const bt_addr_le_t &addr, Sensor *&sen
 	}
 
 	FormatUniqueId(addr, uniqueId, sizeof(uniqueId));
-	FormatNodeLabel(addr, label, sizeof(label));
+	FormatNodeLabel(addr, thermostat, label, sizeof(label));
 
 	auto &deviceFactory = BleBridgedDeviceFactory::GetBridgedDeviceFactory();
-	MatterBridgedDevice *devices[2] = {
-		deviceFactory.Create(MatterBridgedDevice::DeviceType::TemperatureSensor, uniqueId, label),
-		deviceFactory.Create(MatterBridgedDevice::DeviceType::HumiditySensor, uniqueId, label),
-	};
+	MatterBridgedDevice *devices[2] = {};
+	const uint8_t count = thermostat ? 1 : 2;
+
+	if (thermostat) {
+		devices[0] = deviceFactory.Create(MatterBridgedDevice::DeviceType::Thermostat, uniqueId, label);
+	} else {
+		devices[0] = deviceFactory.Create(MatterBridgedDevice::DeviceType::TemperatureSensor, uniqueId, label);
+		devices[1] = deviceFactory.Create(MatterBridgedDevice::DeviceType::HumiditySensor, uniqueId, label);
+	}
 	auto *provider = Platform::New<BTHomeSensorProvider>(addr, BridgeManager::HandleUpdate);
 
-	if (!devices[0] || !devices[1] || !provider) {
+	if (!devices[0] || (count == 2 && !devices[1]) || !provider) {
 		Platform::Delete(devices[0]);
 		Platform::Delete(devices[1]);
 		Platform::Delete(provider);
@@ -242,7 +249,7 @@ CHIP_ERROR BTHomeSensorManager::AddSensor(const bt_addr_le_t &addr, Sensor *&sen
 	sensor->mProvider = provider;
 
 	uint8_t indexes[2];
-	CHIP_ERROR err = BridgeManager::Instance().AddBridgedDevices(devices, provider, 2, indexes);
+	CHIP_ERROR err = BridgeManager::Instance().AddBridgedDevices(devices, provider, count, indexes);
 	if (err != CHIP_NO_ERROR) {
 		/* The bridge manager deleted the devices and the provider. */
 		LOG_ERR("BTHome: cannot add %s: %" CHIP_ERROR_FORMAT, addrStr, err.Format());
@@ -250,10 +257,14 @@ CHIP_ERROR BTHomeSensorManager::AddSensor(const bt_addr_le_t &addr, Sensor *&sen
 		return err;
 	}
 
-	sensor->mTemperatureEndpoint = devices[0]->GetEndpointId();
-	sensor->mHumidityEndpoint = devices[1]->GetEndpointId();
+	if (thermostat) {
+		sensor->mThermostatEndpoint = devices[0]->GetEndpointId();
+	} else {
+		sensor->mTemperatureEndpoint = devices[0]->GetEndpointId();
+		sensor->mHumidityEndpoint = devices[1]->GetEndpointId();
+	}
 
-	for (uint8_t i = 0; i < 2 && err == CHIP_NO_ERROR; i++) {
+	for (uint8_t i = 0; i < count && err == CHIP_NO_ERROR; i++) {
 		err = StoreDevice(devices[i], addr, indexes[i]);
 	}
 	if (err == CHIP_NO_ERROR) {
@@ -263,8 +274,8 @@ CHIP_ERROR BTHomeSensorManager::AddSensor(const bt_addr_le_t &addr, Sensor *&sen
 		LOG_ERR("BTHome: %s added but not stored: %" CHIP_ERROR_FORMAT, addrStr, err.Format());
 	}
 
-	LOG_INF("BTHome: added %s as \"%s\" (endpoints %u, %u)", addrStr, label, sensor->mTemperatureEndpoint,
-		sensor->mHumidityEndpoint);
+	LOG_INF("BTHome: added %s as \"%s\" (endpoints %u, %u, thermostat %u)", addrStr, label,
+		sensor->mTemperatureEndpoint, sensor->mHumidityEndpoint, sensor->mThermostatEndpoint);
 	return CHIP_NO_ERROR;
 }
 
@@ -291,6 +302,8 @@ CHIP_ERROR BTHomeSensorManager::Restore(const bt_addr_le_t &addr, uint16_t devic
 		sensor->mTemperatureEndpoint = endpointId;
 	} else if (deviceType == MatterBridgedDevice::DeviceType::HumiditySensor) {
 		sensor->mHumidityEndpoint = endpointId;
+	} else if (deviceType == MatterBridgedDevice::DeviceType::Thermostat) {
+		sensor->mThermostatEndpoint = endpointId;
 	}
 	return CHIP_NO_ERROR;
 }
@@ -302,7 +315,8 @@ CHIP_ERROR BTHomeSensorManager::Remove(const bt_addr_le_t &addr)
 
 	if (sensor) {
 		/* Copy: removing the last endpoint deletes the provider, which clears the slot. */
-		const uint16_t endpoints[] = { sensor->mTemperatureEndpoint, sensor->mHumidityEndpoint };
+		const uint16_t endpoints[] = { sensor->mTemperatureEndpoint, sensor->mHumidityEndpoint,
+					       sensor->mThermostatEndpoint };
 
 		for (uint16_t endpoint : endpoints) {
 			if (endpoint != 0) {
@@ -347,6 +361,7 @@ size_t BTHomeSensorManager::GetSensors(SensorInfo *out, size_t max) const
 		bt_addr_le_copy(&info.mAddr, &p.GetAddress());
 		info.mTemperatureEndpoint = sensor.mTemperatureEndpoint;
 		info.mHumidityEndpoint = sensor.mHumidityEndpoint;
+		info.mThermostatEndpoint = sensor.mThermostatEndpoint;
 		info.mReachable = p.IsReachable();
 		info.mLastSeenMs = p.GetLastSeenMs();
 		info.mHasTemperature = p.HasTemperature();

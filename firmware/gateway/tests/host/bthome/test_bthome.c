@@ -213,6 +213,73 @@ static void test_adv_zero_padding(void)
 	CHECK_EQ(bthome_parse_adv(adv, sizeof(adv), &r), BTHOME_ERR_INVALID);
 }
 
+/* eQ-3 eq3-custom-fw, set A: room temperature, then target temperature (both 0x02), voltage, valve. */
+static void test_eq3_set_a(void)
+{
+	const uint8_t sd[] = {
+		0xD2, 0xFC, 0x40,
+		0x02, 0x6A, 0x08, /* room 21.54 degC */
+		0x02, 0x34, 0x08, /* target 21.00 degC */
+		0x0C, 0xF2, 0x0B, /* 3058 mV */
+		0x2F, 0x2A, /* valve 42 % */
+	};
+	struct bthome_reading r;
+
+	CHECK_EQ(bthome_parse_service_data(sd, sizeof(sd), &r), 0);
+	CHECK_EQ(r.fields, BTHOME_HAS_TEMPERATURE | BTHOME_HAS_TEMPERATURE2 | BTHOME_HAS_VOLTAGE |
+				   BTHOME_HAS_VALVE);
+	CHECK_EQ(r.temperature_centi_c, 2154);
+	CHECK_EQ(r.temperature2_centi_c, 2100);
+	CHECK_EQ(r.voltage_mv, 3058);
+	CHECK_EQ(r.valve_pct, 42);
+	CHECK(r.fields & BTHOME_THERMOSTAT_FIELDS);
+	CHECK(!r.truncated);
+}
+
+/* eQ-3 set B: flags. 0x1F is BTHome "lock", where 1 means unlocked. */
+static void test_eq3_set_b(void)
+{
+	const uint8_t sd[] = {
+		0xD2, 0xFC, 0x40,
+		0x09, 0x01, /* mode manual */
+		0x0F, 0x00, /* boost off */
+		0x15, 0x01, /* battery low */
+		0x19, 0x00, /* not connected */
+		0x1F, 0x01, /* unlocked */
+		0x2D, 0x01, /* window open */
+	};
+	struct bthome_reading r;
+
+	CHECK_EQ(bthome_parse_service_data(sd, sizeof(sd), &r), 0);
+	CHECK_EQ(r.fields, BTHOME_HAS_MODE | BTHOME_HAS_BOOST | BTHOME_HAS_BATTERY_LOW | BTHOME_HAS_CONNECTED |
+				   BTHOME_HAS_UNLOCKED | BTHOME_HAS_WINDOW_OPEN);
+	CHECK_EQ(r.mode, 1);
+	CHECK(!r.boost);
+	CHECK(r.battery_low);
+	CHECK(!r.connected);
+	CHECK(r.unlocked);
+	CHECK(r.window_open);
+	CHECK(r.fields & BTHOME_THERMOSTAT_FIELDS);
+	CHECK(!r.truncated);
+}
+
+/* eQ-3 set C: a button event (three 0x3A slots) and the wheel (0x3C); parsed past, nothing stored. */
+static void test_eq3_set_c(void)
+{
+	const uint8_t sd[] = {
+		0xD2, 0xFC, 0x40,
+		0x00, 0x07, /* packet id */
+		0x3A, 0x01, 0x3A, 0x00, 0x3A, 0x00, /* BOOST pressed */
+		0x3C, 0x00, 0x00, /* wheel */
+	};
+	struct bthome_reading r;
+
+	CHECK_EQ(bthome_parse_service_data(sd, sizeof(sd), &r), 0);
+	CHECK_EQ(r.fields, BTHOME_HAS_PACKET_ID);
+	CHECK(!(r.fields & BTHOME_THERMOSTAT_FIELDS));
+	CHECK(!r.truncated);
+}
+
 int main(void)
 {
 	RUN(test_spec_example);
@@ -231,6 +298,9 @@ int main(void)
 	RUN(test_adv_without_bthome);
 	RUN(test_adv_malformed_length);
 	RUN(test_adv_zero_padding);
+	RUN(test_eq3_set_a);
+	RUN(test_eq3_set_b);
+	RUN(test_eq3_set_c);
 
 	printf("\n%d checks, %d failures\n", checks, failures);
 	return failures ? 1 : 0;

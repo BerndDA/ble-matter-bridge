@@ -39,6 +39,7 @@ void MatterSwitchPluginServerInitCallback();
 void MatterAdministratorCommissioningPluginServerInitCallback();
 void MatterOperationalCredentialsPluginServerInitCallback();
 void MatterGroupKeyManagementPluginServerInitCallback();
+void MatterThermostatPluginServerInitCallback();
 void MatterTemperatureMeasurementPluginServerInitCallback();
 void MatterRelativeHumidityMeasurementPluginServerInitCallback();
 
@@ -63,5 +64,6 @@ void MatterRelativeHumidityMeasurementPluginServerInitCallback();
   MatterAdministratorCommissioningPluginServerInitCallback();                  \
   MatterOperationalCredentialsPluginServerInitCallback();                      \
   MatterGroupKeyManagementPluginServerInitCallback();                          \
+  MatterThermostatPluginServerInitCallback();                                  \
   MatterTemperatureMeasurementPluginServerInitCallback();                      \
   MatterRelativeHumidityMeasurementPluginServerInitCallback();

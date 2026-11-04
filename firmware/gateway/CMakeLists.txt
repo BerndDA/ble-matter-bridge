@@ -61,6 +61,7 @@ target_sources(app PRIVATE
   src/ble/ble_bridged_device_factory.cpp
   src/bridged_device_types/temperature_sensor.cpp
   src/bridged_device_types/humidity_sensor.cpp
+  src/bridged_device_types/thermostat.cpp
   src/ble/data_providers/ble_environmental_data_provider.cpp
   src/sensors/bthome.c
   src/sensors/sensor_scanner.c

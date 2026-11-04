@@ -46,6 +46,30 @@ static void merge_reading(struct bthome_reading *dst, const struct bthome_readin
 	if (src->fields & BTHOME_HAS_VOLTAGE) {
 		dst->voltage_mv = src->voltage_mv;
 	}
+	if (src->fields & BTHOME_HAS_TEMPERATURE2) {
+		dst->temperature2_centi_c = src->temperature2_centi_c;
+	}
+	if (src->fields & BTHOME_HAS_VALVE) {
+		dst->valve_pct = src->valve_pct;
+	}
+	if (src->fields & BTHOME_HAS_MODE) {
+		dst->mode = src->mode;
+	}
+	if (src->fields & BTHOME_HAS_BOOST) {
+		dst->boost = src->boost;
+	}
+	if (src->fields & BTHOME_HAS_BATTERY_LOW) {
+		dst->battery_low = src->battery_low;
+	}
+	if (src->fields & BTHOME_HAS_CONNECTED) {
+		dst->connected = src->connected;
+	}
+	if (src->fields & BTHOME_HAS_UNLOCKED) {
+		dst->unlocked = src->unlocked;
+	}
+	if (src->fields & BTHOME_HAS_WINDOW_OPEN) {
+		dst->window_open = src->window_open;
+	}
 	dst->fields |= src->fields;
 	dst->trigger_based = src->trigger_based;
 	dst->truncated = src->truncated;

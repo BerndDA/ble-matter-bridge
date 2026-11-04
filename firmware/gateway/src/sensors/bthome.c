@@ -16,6 +16,13 @@
 #define OBJ_TEMPERATURE 0x02
 #define OBJ_HUMIDITY 0x03
 #define OBJ_VOLTAGE 0x0C
+#define OBJ_COUNT 0x09
+#define OBJ_GENERIC_BOOLEAN 0x0F
+#define OBJ_BATTERY_LOW 0x15
+#define OBJ_CONNECTIVITY 0x19
+#define OBJ_LOCK 0x1F
+#define OBJ_WINDOW 0x2D
+#define OBJ_MOISTURE_8 0x2F
 #define OBJ_TEXT 0x53
 #define OBJ_RAW 0x54
 
@@ -112,8 +119,14 @@ int bthome_parse_service_data(const uint8_t *data, size_t len, struct bthome_rea
 			out->fields |= BTHOME_HAS_BATTERY;
 			break;
 		case OBJ_TEMPERATURE:
-			out->temperature_centi_c = (int16_t)get_le16(v);
-			out->fields |= BTHOME_HAS_TEMPERATURE;
+			/* eQ-3 sends room temperature, then target temperature, both as 0x02. */
+			if (out->fields & BTHOME_HAS_TEMPERATURE) {
+				out->temperature2_centi_c = (int16_t)get_le16(v);
+				out->fields |= BTHOME_HAS_TEMPERATURE2;
+			} else {
+				out->temperature_centi_c = (int16_t)get_le16(v);
+				out->fields |= BTHOME_HAS_TEMPERATURE;
+			}
 			break;
 		case OBJ_HUMIDITY:
 			out->humidity_centi_pct = get_le16(v);
@@ -122,6 +135,34 @@ int bthome_parse_service_data(const uint8_t *data, size_t len, struct bthome_rea
 		case OBJ_VOLTAGE:
 			out->voltage_mv = get_le16(v);
 			out->fields |= BTHOME_HAS_VOLTAGE;
+			break;
+		case OBJ_COUNT:
+			out->mode = v[0];
+			out->fields |= BTHOME_HAS_MODE;
+			break;
+		case OBJ_MOISTURE_8:
+			out->valve_pct = v[0] > 100 ? 100 : v[0];
+			out->fields |= BTHOME_HAS_VALVE;
+			break;
+		case OBJ_GENERIC_BOOLEAN:
+			out->boost = v[0] != 0;
+			out->fields |= BTHOME_HAS_BOOST;
+			break;
+		case OBJ_BATTERY_LOW:
+			out->battery_low = v[0] != 0;
+			out->fields |= BTHOME_HAS_BATTERY_LOW;
+			break;
+		case OBJ_CONNECTIVITY:
+			out->connected = v[0] != 0;
+			out->fields |= BTHOME_HAS_CONNECTED;
+			break;
+		case OBJ_LOCK:
+			out->unlocked = v[0] != 0;
+			out->fields |= BTHOME_HAS_UNLOCKED;
+			break;
+		case OBJ_WINDOW:
+			out->window_open = v[0] != 0;
+			out->fields |= BTHOME_HAS_WINDOW_OPEN;
 			break;
 		default:
 			break;

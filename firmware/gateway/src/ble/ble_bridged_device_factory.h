@@ -36,6 +36,8 @@
 #include "temperature_sensor.h"
 #endif
 
+#include "thermostat.h"
+
 #if defined(CONFIG_BRIDGE_HUMIDITY_SENSOR_BRIDGED_DEVICE) && defined(CONFIG_BRIDGE_TEMPERATURE_SENSOR_BRIDGED_DEVICE)
 #include "ble_environmental_data_provider.h"
 #endif

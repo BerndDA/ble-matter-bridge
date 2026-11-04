@@ -46,6 +46,41 @@ bool ParseAddress(const struct shell *sh, size_t argc, char **argv, bt_addr_le_t
 	return true;
 }
 
+/* Flag value as "0"/"1", or "-" when not received yet. */
+const char *Flag(const bthome_reading &r, uint32_t field, bool value)
+{
+	return (r.fields & field) ? (value ? "1" : "0") : "-";
+}
+
+/* Second line for an eQ-3 thermostat (eq3-custom-fw); the Temp C column above is the room temperature. */
+void PrintThermostat(const struct shell *sh, const bthome_reading &r)
+{
+	static const char *const kModes[] = { "auto", "manual", "holiday" };
+	char target[12] = "-";
+	char valve[6] = "-";
+	char mode[8] = "-";
+
+	if (r.fields & BTHOME_HAS_TEMPERATURE2) {
+		FormatCenti(target, sizeof(target), r.temperature2_centi_c);
+	}
+	if (r.fields & BTHOME_HAS_VALVE) {
+		snprintk(valve, sizeof(valve), "%u", r.valve_pct);
+	}
+	if (r.fields & BTHOME_HAS_MODE) {
+		if (r.mode < ARRAY_SIZE(kModes)) {
+			snprintk(mode, sizeof(mode), "%s", kModes[r.mode]);
+		} else {
+			snprintk(mode, sizeof(mode), "%u", r.mode);
+		}
+	}
+
+	shell_print(sh, "  thermostat: target %s C, valve %s %%, mode %s, boost %s, window %s, locked %s, "
+			"battery low %s, connected %s",
+		    target, valve, mode, Flag(r, BTHOME_HAS_BOOST, r.boost),
+		    Flag(r, BTHOME_HAS_WINDOW_OPEN, r.window_open), Flag(r, BTHOME_HAS_UNLOCKED, !r.unlocked),
+		    Flag(r, BTHOME_HAS_BATTERY_LOW, r.battery_low), Flag(r, BTHOME_HAS_CONNECTED, r.connected));
+}
+
 int CmdSeen(const struct shell *sh, size_t, char **)
 {
 	static sensor_seen list[CONFIG_GATEWAY_SENSOR_SEEN_MAX];
@@ -81,6 +116,9 @@ int CmdSeen(const struct shell *sh, size_t, char **)
 		shell_print(sh, "%-30s %5d %6lld %8s %7s %5s %6s %6u %7u %6us", addr, s.rssi,
 			    (now - s.last_seen_ms) / 1000, temp, hum, bat, mv, s.measurements, s.packets,
 			    s.max_gap_ms / 1000);
+		if (s.last.fields & BTHOME_THERMOSTAT_FIELDS) {
+			PrintThermostat(sh, s.last);
+		}
 	}
 	shell_print(sh, "Total: %u sensor(s)", unsigned(n));
 	return 0;
@@ -109,7 +147,11 @@ int CmdSensors(const struct shell *sh, size_t, char **)
 		char hum[12] = "-";
 
 		bt_addr_le_to_str(&s.mAddr, addr, sizeof(addr));
-		snprintk(endpoints, sizeof(endpoints), "%u,%u", s.mTemperatureEndpoint, s.mHumidityEndpoint);
+		if (s.mThermostatEndpoint != 0) {
+			snprintk(endpoints, sizeof(endpoints), "%u (T)", s.mThermostatEndpoint);
+		} else {
+			snprintk(endpoints, sizeof(endpoints), "%u,%u", s.mTemperatureEndpoint, s.mHumidityEndpoint);
+		}
 		if (s.mLastSeenMs > 0) {
 			snprintk(age, sizeof(age), "%lld", (now - s.mLastSeenMs) / 1000);
 		}

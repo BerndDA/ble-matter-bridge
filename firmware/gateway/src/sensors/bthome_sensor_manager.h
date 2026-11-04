@@ -3,7 +3,8 @@
  *
  * - New sensors are added automatically on their first BTHome packet
  *   (CONFIG_GATEWAY_BTHOME_AUTO_ADD), as a Temperature Sensor and a Humidity
- *   Sensor endpoint sharing one BTHomeSensorProvider.
+ *   Sensor endpoint sharing one BTHomeSensorProvider. eQ-3 thermostats with
+ *   eq3-custom-fw are added as one Thermostat endpoint.
  * - Added sensors are stored by the bridge storage and restored on boot with
  *   the same endpoint IDs, so names and rooms in the controller are kept.
  * - Removed sensors go on an ignore list so auto-add does not bring them back.
@@ -42,6 +43,7 @@ public:
 		bt_addr_le_t mAddr;
 		uint16_t mTemperatureEndpoint;
 		uint16_t mHumidityEndpoint;
+		uint16_t mThermostatEndpoint;
 		bool mReachable;
 		int64_t mLastSeenMs;
 		bool mHasTemperature;
@@ -84,6 +86,7 @@ private:
 		BTHomeSensorProvider *mProvider = nullptr;
 		uint16_t mTemperatureEndpoint = 0;
 		uint16_t mHumidityEndpoint = 0;
+		uint16_t mThermostatEndpoint = 0;
 	};
 
 	static void OnScannerReading(const bt_addr_le_t *addr, int8_t rssi, const bthome_reading *reading);
@@ -92,7 +95,7 @@ private:
 	static void CheckReachability(intptr_t);
 
 	void HandleReading(const bt_addr_le_t &addr, const bthome_reading &reading);
-	CHIP_ERROR AddSensor(const bt_addr_le_t &addr, Sensor *&sensor);
+	CHIP_ERROR AddSensor(const bt_addr_le_t &addr, bool thermostat, Sensor *&sensor);
 	Sensor *Find(const bt_addr_le_t &addr);
 	Sensor *FindFree();
 	bool IsIgnored(const bt_addr_le_t &addr) const;
