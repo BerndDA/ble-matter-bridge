@@ -1,0 +1,6 @@
+# Zephyr / NCS build output
+build*/
+build.log
+
+# macOS
+.DS_Store
