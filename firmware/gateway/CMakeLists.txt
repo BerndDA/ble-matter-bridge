@@ -64,7 +64,9 @@ target_sources(app PRIVATE
   src/ble/data_providers/ble_environmental_data_provider.cpp
   src/sensors/bthome.c
   src/sensors/sensor_scanner.c
-  src/sensors/sensor_shell.c
+  src/sensors/sensor_shell.cpp
+  src/sensors/bthome_sensor_provider.cpp
+  src/sensors/bthome_sensor_manager.cpp
   ${ZEPHYR_NRF_MODULE_DIR}/samples/matter/common/src/binding/binding_handler.cpp
 )
 

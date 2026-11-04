@@ -19,7 +19,7 @@ Firmware for an nRF52840 gateway. It brings existing BLE temperature/humidity se
 | --- | --- |
 | 1. Toolchain and stock bridge on a DK | Done. See [the spike](spike/matter-bridge-nrf52840/). |
 | 2. Commission into a controller | Done. Commissioned into Apple Home, with a HomePod as the Thread border router. |
-| 3. Advertisement-based sensors | In progress. Target: thermometers running pvvx firmware that advertise BTHome v2, unencrypted. |
+| 3. Advertisement-based sensors | Done for temperature and humidity: pvvx sensors (BTHome v2, unencrypted) are added to Matter automatically and show up in Apple Home. Battery is still missing. |
 | 4. One thermostat (connect on demand) | Not started |
 | 5. Measure, then scale up or move to the nRF5340 | Not started |
 
@@ -27,8 +27,26 @@ Firmware for an nRF52840 gateway. It brings existing BLE temperature/humidity se
 
 | Image | Flash | RAM (reserved at build time) |
 | --- | --- | --- |
-| Gateway app | 838 KB of 975 KB (86%) | 205 KB of 256 KB (78%) |
+| Gateway app | 844 KB of 975 KB (87%) | 208 KB of 256 KB (79%) |
 | MCUboot | 24 KB of 28 KB (85%) | 18 KB |
+
+## Sensors
+
+The gateway scans continuously for BTHome v2 advertisements (25 % duty cycle, so Thread keeps most of the radio time). A sensor heard for the first time is added as a Temperature Sensor and a Humidity Sensor endpoint, named `Sensor XXXX` after the last two bytes of its address. Added sensors are stored and keep their endpoints across reboots. A sensor is reported unreachable after 10 minutes without packets.
+
+Shell commands (in nRF Terminal, 115200 baud):
+
+| Command | Purpose |
+| --- | --- |
+| `gateway seen` | All BTHome sensors heard, with their latest values |
+| `gateway sensors` | Sensors bridged to Matter, with endpoints and reachability |
+| `gateway remove <addr>` | Remove a sensor (for example a neighbour's) and ignore it from now on |
+| `gateway unignore <addr>` | Allow an ignored sensor to be added again |
+| `gateway ignored` | List ignored addresses |
+
+Settings in [Kconfig](firmware/gateway/Kconfig): `GATEWAY_BTHOME_AUTO_ADD`, `GATEWAY_BTHOME_MAX_SENSORS` (default 6), `GATEWAY_BTHOME_UNREACHABLE_TIMEOUT_S` (default 600), and the scan window and interval.
+
+Parser tests run on the Mac: `make -C firmware/gateway/tests/host/bthome`.
 
 ## Building and flashing
 

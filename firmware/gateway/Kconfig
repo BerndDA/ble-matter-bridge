@@ -69,25 +69,27 @@ config BRIDGE_BLE_DEVICE_POLLING_INTERVAL
 
 if BRIDGE_TEMPERATURE_SENSOR_BRIDGED_DEVICE
 
+# Matter TemperatureMeasurement uses 0.01 degC. (The original sample used -20/60, i.e. -0.20..0.60 degC.)
 config BRIDGE_TEMPERATURE_SENSOR_MIN_MEASURED_VALUE
-	int "Default minimum measured value allowed by the bridged temperature sensor device"
-	default -20
+	int "Minimum measured value of bridged temperature sensors (0.01 degC)"
+	default -4000
 
 config BRIDGE_TEMPERATURE_SENSOR_MAX_MEASURED_VALUE
-	int "Default maximum measured value allowed by the bridged temperature sensor device"
-	default 60
+	int "Maximum measured value of bridged temperature sensors (0.01 degC)"
+	default 12500
 
 endif
 
 if BRIDGE_HUMIDITY_SENSOR_BRIDGED_DEVICE
 
+# Matter RelativeHumidityMeasurement uses 0.01 %. (The original sample used 0/100, i.e. 0..1 %.)
 config BRIDGE_HUMIDITY_SENSOR_MIN_MEASURED_VALUE
-	int "Default minimum measured value allowed by the bridged humidity sensor device"
+	int "Minimum measured value of bridged humidity sensors (0.01 %)"
 	default 0
 
 config BRIDGE_HUMIDITY_SENSOR_MAX_MEASURED_VALUE
-	int "Default maximum measured value allowed by the bridged humidity sensor device"
-	default 100
+	int "Maximum measured value of bridged humidity sensors (0.01 %)"
+	default 10000
 
 endif
 
@@ -125,6 +127,33 @@ config GATEWAY_SENSOR_SEEN_MAX
 config GATEWAY_SENSOR_SCAN_PAUSE_CONNECT_MS
 	int "Background scan pause while a GATT connection is being created (ms)"
 	default 5000
+
+config GATEWAY_BTHOME_AUTO_ADD
+	bool "Add BTHome sensors to Matter automatically"
+	default y
+	help
+	  Add a sensor as a Temperature Sensor and a Humidity Sensor endpoint on its
+	  first BTHome packet with measurements. Removed sensors are ignored from then
+	  on (shell: gateway remove / gateway unignore).
+
+config GATEWAY_BTHOME_MAX_SENSORS
+	int "Maximum number of bridged BTHome sensors"
+	default 6
+	help
+	  Each sensor uses one bridge provider and two dynamic endpoints, see
+	  BRIDGE_MAX_BRIDGED_DEVICES_NUMBER and BRIDGE_MAX_DYNAMIC_ENDPOINTS_NUMBER.
+
+config GATEWAY_BTHOME_IGNORE_MAX
+	int "Maximum number of ignored BTHome sensor addresses"
+	default 8
+
+config GATEWAY_BTHOME_UNREACHABLE_TIMEOUT_S
+	int "Report a sensor unreachable after this many seconds without packets"
+	default 600
+
+config GATEWAY_BTHOME_QUEUE_SIZE
+	int "Readings queued between the Bluetooth and Matter threads"
+	default 8
 
 module = GATEWAY_SENSOR_SCANNER
 module-str = Gateway sensor scanner

@@ -6,6 +6,7 @@
 
 #include "app_task.h"
 #include "sensor_scanner.h"
+#include "bthome_sensor_manager.h"
 
 #ifdef CONFIG_BRIDGED_DEVICE_BT
 #include "ble_bridged_device_factory.h"
@@ -135,9 +136,10 @@ CHIP_ERROR AppTask::RestoreBridgedDevices()
 	for (size_t i = 0; i < indexesCount; i++) {
 		Nrf::BridgeStorageManager::BridgedDevice device;
 #ifdef CONFIG_BRIDGED_DEVICE_BT
-		bt_addr_le_t btAddr;
-		device.mUserData = reinterpret_cast<uint8_t *>(&btAddr);
-		device.mUserDataSize = sizeof(btAddr);
+		/* GATT devices store only their address; BTHome sensors add a kind marker. */
+		Gateway::StoredDeviceUserData userData{};
+		device.mUserData = reinterpret_cast<uint8_t *>(&userData);
+		device.mUserDataSize = sizeof(userData);
 #endif
 
 		if (!Nrf::BridgeStorageManager::Instance().LoadBridgedDevice(device, indexes[i])) {
@@ -147,8 +149,15 @@ CHIP_ERROR AppTask::RestoreBridgedDevices()
 		LOG_INF("Loaded bridged device on endpoint id %d from the storage", device.mEndpointId);
 
 #ifdef CONFIG_BRIDGED_DEVICE_BT
-		BleBridgedDeviceFactory::CreateDevice(device.mDeviceType, btAddr, device.mUniqueID, device.mNodeLabel,
-						      indexes[i], device.mEndpointId);
+		if (device.mUserDataSize == sizeof(userData) &&
+		    userData.mKind == Gateway::StoredDeviceUserData::kBTHomeSensor) {
+			Gateway::BTHomeSensorManager::Instance().Restore(userData.mAddr, device.mDeviceType,
+									 device.mUniqueID, device.mNodeLabel,
+									 indexes[i], device.mEndpointId);
+		} else {
+			BleBridgedDeviceFactory::CreateDevice(device.mDeviceType, userData.mAddr, device.mUniqueID,
+							      device.mNodeLabel, indexes[i], device.mEndpointId);
+		}
 #else
 		SimulatedBridgedDeviceFactory::CreateDevice(device.mDeviceType, device.mUniqueID, device.mNodeLabel,
 							    chip::Optional<uint8_t>(indexes[i]),
@@ -202,12 +211,18 @@ CHIP_ERROR AppTask::Init()
 			return CHIP_ERROR_INTERNAL;
 		}
 
+		/* Load the BTHome ignore list before stored sensors are restored. */
+		Gateway::BTHomeSensorManager::Instance().Init();
+
 		/* Initialize bridge manager */
 		CHIP_ERROR bridgeMgrInitError = Nrf::BridgeManager::Instance().Init(RestoreBridgedDevices);
 		if (bridgeMgrInitError != CHIP_NO_ERROR) {
 			LOG_ERR("BridgeManager initialization failed");
 			return bridgeMgrInitError;
 		}
+
+		/* Bridge BTHome sensors heard by the scanner. */
+		Gateway::BTHomeSensorManager::Instance().Start();
 		return CHIP_NO_ERROR;
 	} }));
 #ifdef CONFIG_BRIDGE_SMART_PLUG_SUPPORT
