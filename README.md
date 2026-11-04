@@ -45,7 +45,7 @@ west flash -d firmware/gateway/build            # keeps commissioning and stored
 west flash -d firmware/gateway/build --erase    # full erase: the gateway must be commissioned again
 ```
 
-The script uses the real install path on the external drive. The `/opt/nordic` symlink breaks some linker script includes. It also points `NRFUTIL_HOME` at the nrfutil that ships with the VS Code extension, which `west flash` needs.
+The script uses the external drive if it's mounted and `/opt/nordic` otherwise. Set `NCS_ROOT` to use a different location. If `/opt/nordic` is a symlink, point `NCS_ROOT` at the real path instead, because the symlink breaks some linker script includes. It also points `NRFUTIL_HOME` at the nrfutil that ships with the VS Code extension, which `west flash` needs.
 
 ### Commissioning
 

@@ -6,9 +6,20 @@
 # It uses the real install path (not the /opt/nordic symlink), because builds through
 # the symlink fail to resolve some linker script includes.
 
-NCS_ROOT="${NCS_ROOT:-/Volumes/mac-mini-external/nordic}"
+if [ -z "${NCS_ROOT}" ] || [ ! -d "${NCS_ROOT}/ncs" ]; then
+	if [ -d /Volumes/mac-mini-external/nordic/ncs ]; then
+		NCS_ROOT=/Volumes/mac-mini-external/nordic
+	else
+		NCS_ROOT=/opt/nordic
+	fi
+fi
 NCS_VERSION="v3.4.1"
 NCS_TOOLCHAIN="${NCS_ROOT}/ncs/toolchains/97226bad62"
+
+if [ ! -x "${NCS_TOOLCHAIN}/bin/west" ]; then
+	echo "ncs-env: west not found in ${NCS_TOOLCHAIN}/bin; set NCS_ROOT to your install" >&2
+	return 1
+fi
 
 export ZEPHYR_BASE="${NCS_ROOT}/ncs/${NCS_VERSION}/zephyr"
 export ZEPHYR_TOOLCHAIN_VARIANT=zephyr
