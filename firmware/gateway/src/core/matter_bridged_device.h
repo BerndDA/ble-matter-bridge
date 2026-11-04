@@ -57,6 +57,27 @@ namespace Nrf
 			0), /* feature map */                                                                          \
 		DECLARE_DYNAMIC_ATTRIBUTE_LIST_END();
 
+/* Declare Power Source cluster attributes for a battery powered bridged device (feature BAT). */
+#define POWER_SOURCE_BATTERY_CLUSTER_ATTRIBUTES(powerSourceAttrs)                                                      \
+	DECLARE_DYNAMIC_ATTRIBUTE_LIST_BEGIN(powerSourceAttrs)                                                         \
+	DECLARE_DYNAMIC_ATTRIBUTE(chip::app::Clusters::PowerSource::Attributes::Status::Id, ENUM8, 1, 0),              \
+		DECLARE_DYNAMIC_ATTRIBUTE(chip::app::Clusters::PowerSource::Attributes::Order::Id, INT8U, 1, 0),       \
+		DECLARE_DYNAMIC_ATTRIBUTE(chip::app::Clusters::PowerSource::Attributes::Description::Id, CHAR_STRING,  \
+					  Nrf::MatterBridgedDevice::kPowerSourceDescriptionSize, 0),                   \
+		DECLARE_DYNAMIC_ATTRIBUTE(chip::app::Clusters::PowerSource::Attributes::BatPercentRemaining::Id,       \
+					  INT8U, 1, ZAP_ATTRIBUTE_MASK(NULLABLE)),                                     \
+		DECLARE_DYNAMIC_ATTRIBUTE(chip::app::Clusters::PowerSource::Attributes::BatChargeLevel::Id, ENUM8, 1,  \
+					  0),                                                                          \
+		DECLARE_DYNAMIC_ATTRIBUTE(chip::app::Clusters::PowerSource::Attributes::BatReplacementNeeded::Id,      \
+					  BOOLEAN, 1, 0),                                                              \
+		DECLARE_DYNAMIC_ATTRIBUTE(chip::app::Clusters::PowerSource::Attributes::BatReplaceability::Id, ENUM8,  \
+					  1, 0),                                                                       \
+		DECLARE_DYNAMIC_ATTRIBUTE(chip::app::Clusters::PowerSource::Attributes::EndpointList::Id, ARRAY,       \
+					  Nrf::MatterBridgedDevice::kDescriptorAttributeArraySize, 0),                 \
+		DECLARE_DYNAMIC_ATTRIBUTE(chip::app::Clusters::PowerSource::Attributes::FeatureMap::Id, BITMAP32, 4,   \
+					  0),                                                                          \
+		DECLARE_DYNAMIC_ATTRIBUTE_LIST_END();
+
 /* Codedriven delegate for the Identify cluster */
 class IdentifyBridgedDeviceDelegateImpl : public chip::app::Clusters::IdentifyDelegate {
 public:
@@ -100,6 +121,9 @@ public:
 	static constexpr uint8_t kNodeLabelSize = 32;
 	static constexpr uint8_t kUniqueIDSize = chip::DeviceLayer::ConfigurationManager::kMaxUniqueIDLength;
 	static constexpr uint8_t kDescriptorAttributeArraySize = 254;
+	static constexpr uint8_t kPowerSourceDescriptionSize = 16;
+	/* BatPercentRemaining is in half percent; this is its null value. */
+	static constexpr uint8_t kBatPercentUnknown = 0xFF;
 
 	explicit MatterBridgedDevice(const char *uniqueID, const char *nodeLabel)
 	{
@@ -118,6 +142,9 @@ public:
 			mIdentifyCluster.Destroy();
 		}
 
+		if (mHasPowerSource) {
+			ClearPowerSourceEndpointList();
+		}
 		chip::Platform::MemoryFree(mDataVersion);
 	}
 
@@ -134,6 +161,10 @@ public:
 			mIdentifyCluster.Registration());
 		if (err != CHIP_NO_ERROR) {
 			ChipLogError(DeviceLayer, "Failed to register Identify cluster: %s", ErrorStr(err));
+		}
+
+		if (mHasPowerSource) {
+			SetPowerSourceEndpointList();
 		}
 	}
 
@@ -156,6 +187,11 @@ public:
 	CHIP_ERROR HandleReadIdentify(chip::AttributeId attributeId, uint8_t *buffer, uint16_t maxReadLength);
 	CHIP_ERROR HandleWriteIdentify(chip::AttributeId attributeId, void *data, size_t dataSize);
 
+	/* Power Source cluster (battery) for device types that declare it with POWER_SOURCE_BATTERY_CLUSTER_ATTRIBUTES. */
+	CHIP_ERROR HandleReadPowerSource(chip::AttributeId attributeId, uint8_t *buffer, uint16_t maxReadLength);
+	CHIP_ERROR HandleWritePowerSource(chip::AttributeId attributeId, void *data, size_t dataSize);
+	static constexpr uint32_t GetPowerSourceFeatureMap() { return 0x2; /* BAT */ }
+
 	bool GetIsReachable() const { return mIsReachable; }
 	const char *GetUniqueID() const { return mUniqueID; }
 	const char *GetNodeLabel() const { return mNodeLabel; }
@@ -173,11 +209,20 @@ public:
 protected:
 	void SetIsReachable(bool isReachable) { mIsReachable = isReachable; }
 	void SetNodeLabel(void *data, size_t size);
+	/* Call from the constructor of device types whose endpoint has the Power Source cluster. */
+	void EnablePowerSource() { mHasPowerSource = true; }
 
 	chip::EndpointId mEndpointId{};
 
 private:
+	void SetPowerSourceEndpointList();
+	void ClearPowerSourceEndpointList();
+
 	bool mIsReachable = true;
+	bool mHasPowerSource = false;
+	uint8_t mBatPercentRemaining = kBatPercentUnknown;
+	uint8_t mBatChargeLevel = 0; /* BatChargeLevelEnum::kOk */
+	bool mBatReplacementNeeded = false;
 	char mUniqueID[kUniqueIDSize] = "";
 	char mNodeLabel[kNodeLabelSize] = "";
 	chip::app::LazyRegisteredServerCluster<chip::app::Clusters::IdentifyCluster> mIdentifyCluster;

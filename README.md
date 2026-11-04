@@ -21,7 +21,7 @@ Open tasks and decisions are in [TODO.md](TODO.md).
 | --- | --- |
 | 1. Toolchain and stock bridge on a DK | Done. See [the spike](spike/matter-bridge-nrf52840/). |
 | 2. Commission into a controller | Done. Commissioned into Apple Home, with a HomePod as the Thread border router. |
-| 3. Advertisement-based sensors | Done for temperature and humidity: pvvx sensors (BTHome v2, unencrypted) are added to Matter automatically and show up in Apple Home. Battery is still missing. |
+| 3. Advertisement-based sensors | Done for temperature and humidity: pvvx sensors (BTHome v2, unencrypted) are added to Matter automatically and show up in Apple Home. Battery level and low-battery warnings are reported too. |
 | 4. One thermostat (connect on demand) | Not started |
 | 5. Measure, then scale up or move to the nRF5340 | First measurement done with two sensors, see [doc/measurements.md](doc/measurements.md). The nRF52840 has enough headroom, and Thread stays stable while scanning. Far sensors are the weak point. To be measured again after step 4. |
 
@@ -29,7 +29,7 @@ Open tasks and decisions are in [TODO.md](TODO.md).
 
 | Image | Flash | RAM (reserved at build time) |
 | --- | --- | --- |
-| Gateway app | 844 KB of 975 KB (87%) | 208 KB of 256 KB (79%) |
+| Gateway app | 846 KB of 975 KB (87%) | 209 KB of 256 KB (80%) |
 | MCUboot | 24 KB of 28 KB (85%) | 18 KB |
 
 ## Sensors

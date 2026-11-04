@@ -10,6 +10,7 @@ namespace
 {
 DESCRIPTOR_CLUSTER_ATTRIBUTES(descriptorAttrs);
 BRIDGED_DEVICE_BASIC_INFORMATION_CLUSTER_ATTRIBUTES(bridgedDeviceBasicAttrs);
+POWER_SOURCE_BATTERY_CLUSTER_ATTRIBUTES(powerSourceAttrs);
 }; /* namespace */
 
 using namespace ::chip;
@@ -31,6 +32,7 @@ DECLARE_DYNAMIC_CLUSTER(Clusters::RelativeHumidityMeasurement::Id, humiSensorAtt
 	DECLARE_DYNAMIC_CLUSTER(Clusters::Descriptor::Id, descriptorAttrs, ZAP_CLUSTER_MASK(SERVER), nullptr, nullptr),
 	DECLARE_DYNAMIC_CLUSTER(Clusters::BridgedDeviceBasicInformation::Id, bridgedDeviceBasicAttrs,
 				ZAP_CLUSTER_MASK(SERVER), nullptr, nullptr),
+	DECLARE_DYNAMIC_CLUSTER(Clusters::PowerSource::Id, powerSourceAttrs, ZAP_CLUSTER_MASK(SERVER), nullptr, nullptr),
 	DECLARE_DYNAMIC_CLUSTER_LIST_END;
 
 DECLARE_DYNAMIC_ENDPOINT(bridgedHumidityEndpoint, bridgedHumidityClusters);
@@ -53,6 +55,7 @@ HumiditySensorDevice::HumiditySensorDevice(const char *uniqueID, const char *nod
 	mEp = &bridgedHumidityEndpoint;
 	mDeviceTypeList = kBridgedHumidityDeviceTypes;
 	mDeviceTypeListSize = ARRAY_SIZE(kBridgedHumidityDeviceTypes);
+	EnablePowerSource();
 	mDataVersion = static_cast<DataVersion *>(chip::Platform::MemoryAlloc(sizeof(DataVersion) * mDataVersionSize));
 }
 

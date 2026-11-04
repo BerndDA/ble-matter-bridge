@@ -44,6 +44,8 @@ public:
 	uint8_t GetBattery() const { return mBattery; }
 
 private:
+	void UpdateBattery(uint8_t percent);
+
 	bt_addr_le_t mAddr;
 	bool mReachable = true; /* matches the default of MatterBridgedDevice */
 	int64_t mLastSeenMs = 0;
@@ -52,7 +54,9 @@ private:
 	bool mHasHumidity = false;
 	int16_t mTemperature = 0; /* 0.01 degC */
 	uint16_t mHumidity = 0; /* 0.01 % */
-	uint8_t mBattery = 0;
+	bool mHasBattery = false;
+	uint8_t mBattery = 0; /* % */
+	uint8_t mBatteryLevel = 0; /* PowerSource::BatChargeLevelEnum */
 };
 
 } /* namespace Gateway */

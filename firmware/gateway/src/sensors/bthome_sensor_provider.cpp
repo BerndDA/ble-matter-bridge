@@ -7,6 +7,7 @@
 
 #include <app-common/zap-generated/ids/Attributes.h>
 #include <app-common/zap-generated/ids/Clusters.h>
+#include <app-common/zap-generated/cluster-enums.h>
 
 using namespace chip::app;
 
@@ -49,7 +50,7 @@ void BTHomeSensorProvider::OnReading(const bthome_reading &reading, int64_t nowM
 	SetReachable(true);
 
 	if (reading.fields & BTHOME_HAS_BATTERY) {
-		mBattery = reading.battery_pct;
+		UpdateBattery(reading.battery_pct);
 	}
 
 	if ((reading.fields & BTHOME_HAS_TEMPERATURE) &&
@@ -67,6 +68,37 @@ void BTHomeSensorProvider::OnReading(const bthome_reading &reading, int64_t nowM
 		NotifyUpdateState(Clusters::RelativeHumidityMeasurement::Id,
 				  Clusters::RelativeHumidityMeasurement::Attributes::MeasuredValue::Id, &mHumidity,
 				  sizeof(mHumidity));
+	}
+}
+
+void BTHomeSensorProvider::UpdateBattery(uint8_t percent)
+{
+	namespace PS = Clusters::PowerSource;
+
+	const bool first = !mHasBattery;
+	mHasBattery = true;
+
+	if (first || percent != mBattery) {
+		mBattery = percent;
+		/* Matter counts in half percent. */
+		uint8_t halfPercent = uint8_t(percent * 2);
+		NotifyUpdateState(PS::Id, PS::Attributes::BatPercentRemaining::Id, &halfPercent, sizeof(halfPercent));
+	}
+
+	PS::BatChargeLevelEnum chargeLevel = PS::BatChargeLevelEnum::kOk;
+	if (percent <= CONFIG_GATEWAY_BTHOME_BATTERY_CRITICAL_PCT) {
+		chargeLevel = PS::BatChargeLevelEnum::kCritical;
+	} else if (percent <= CONFIG_GATEWAY_BTHOME_BATTERY_WARNING_PCT) {
+		chargeLevel = PS::BatChargeLevelEnum::kWarning;
+	}
+
+	const uint8_t level = chip::to_underlying(chargeLevel);
+	if (first || level != mBatteryLevel) {
+		mBatteryLevel = level;
+		NotifyUpdateState(PS::Id, PS::Attributes::BatChargeLevel::Id, &mBatteryLevel, sizeof(mBatteryLevel));
+
+		bool replace = chargeLevel == PS::BatChargeLevelEnum::kCritical;
+		NotifyUpdateState(PS::Id, PS::Attributes::BatReplacementNeeded::Id, &replace, sizeof(replace));
 	}
 }
 

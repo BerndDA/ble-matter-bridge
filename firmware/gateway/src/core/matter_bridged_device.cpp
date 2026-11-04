@@ -8,6 +8,7 @@
 #include <app-common/zap-generated/callback.h>
 #include <app/AttributeValueDecoder.h>
 #include <app/clusters/identify-server/IdentifyCluster.h>
+#include <app/clusters/power-source-server/power-source-server.h>
 #include <app/data-model/Encode.h>
 #include <lib/core/TLVReader.h>
 #include <lib/core/TLVWriter.h>
@@ -156,6 +157,79 @@ CHIP_ERROR MatterBridgedDevice::HandleReadIdentify(chip::AttributeId attributeId
 	default:
 		return CHIP_ERROR_INVALID_ARGUMENT;
 	}
+}
+
+CHIP_ERROR MatterBridgedDevice::HandleReadPowerSource(AttributeId attributeId, uint8_t *buffer, uint16_t maxReadLength)
+{
+	namespace PS = Clusters::PowerSource;
+
+	switch (attributeId) {
+	case PS::Attributes::Status::Id: {
+		uint8_t value = to_underlying(PS::PowerSourceStatusEnum::kActive);
+		return CopyAttribute(&value, sizeof(value), buffer, maxReadLength);
+	}
+	case PS::Attributes::Order::Id: {
+		uint8_t value = 0;
+		return CopyAttribute(&value, sizeof(value), buffer, maxReadLength);
+	}
+	case PS::Attributes::Description::Id: {
+		MutableByteSpan span(buffer, maxReadLength);
+		return MakeZclCharString(span, "Battery");
+	}
+	case PS::Attributes::BatPercentRemaining::Id:
+		return CopyAttribute(&mBatPercentRemaining, sizeof(mBatPercentRemaining), buffer, maxReadLength);
+	case PS::Attributes::BatChargeLevel::Id:
+		return CopyAttribute(&mBatChargeLevel, sizeof(mBatChargeLevel), buffer, maxReadLength);
+	case PS::Attributes::BatReplacementNeeded::Id:
+		return CopyAttribute(&mBatReplacementNeeded, sizeof(mBatReplacementNeeded), buffer, maxReadLength);
+	case PS::Attributes::BatReplaceability::Id: {
+		uint8_t value = to_underlying(PS::BatReplaceabilityEnum::kUserReplaceable);
+		return CopyAttribute(&value, sizeof(value), buffer, maxReadLength);
+	}
+	case PS::Attributes::FeatureMap::Id: {
+		uint32_t featureMap = GetPowerSourceFeatureMap();
+		return CopyAttribute(&featureMap, sizeof(featureMap), buffer, maxReadLength);
+	}
+	default:
+		/* EndpointList and ClusterRevision are served by the SDK's Power Source server. */
+		return CHIP_ERROR_INVALID_ARGUMENT;
+	}
+}
+
+CHIP_ERROR MatterBridgedDevice::HandleWritePowerSource(AttributeId attributeId, void *data, size_t dataSize)
+{
+	namespace PS = Clusters::PowerSource;
+
+	VerifyOrReturnError(mHasPowerSource && data && dataSize == 1, CHIP_ERROR_INVALID_ARGUMENT);
+
+	switch (attributeId) {
+	case PS::Attributes::BatPercentRemaining::Id:
+		mBatPercentRemaining = *static_cast<uint8_t *>(data);
+		return CHIP_NO_ERROR;
+	case PS::Attributes::BatChargeLevel::Id:
+		mBatChargeLevel = *static_cast<uint8_t *>(data);
+		return CHIP_NO_ERROR;
+	case PS::Attributes::BatReplacementNeeded::Id:
+		mBatReplacementNeeded = *static_cast<bool *>(data);
+		return CHIP_NO_ERROR;
+	default:
+		return CHIP_ERROR_INVALID_ARGUMENT;
+	}
+}
+
+void MatterBridgedDevice::SetPowerSourceEndpointList()
+{
+	/* The battery powers this endpoint only. The server copies the list. */
+	CHIP_ERROR err = Clusters::PowerSourceServer::Instance().SetEndpointList(mEndpointId,
+										  Span<EndpointId>(&mEndpointId, 1));
+	if (err != CHIP_NO_ERROR) {
+		ChipLogError(DeviceLayer, "Failed to set Power Source endpoint list: %" CHIP_ERROR_FORMAT, err.Format());
+	}
+}
+
+void MatterBridgedDevice::ClearPowerSourceEndpointList()
+{
+	Clusters::PowerSourceServer::Instance().SetEndpointList(mEndpointId, Span<EndpointId>());
 }
 
 } /* namespace Nrf */

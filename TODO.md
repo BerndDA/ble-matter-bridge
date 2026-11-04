@@ -10,12 +10,10 @@ What's left to do and to decide. Tick items off here; the plan behind the steps 
   - Have pvvx advertise more often, for example every 1 s (costs sensor battery).
   - Scan at a 50 % duty cycle instead of 25 % (costs Thread listening time; run the A/B test again).
 - [ ] **Unreachable timeout.** 10 minutes now. Raise it if far sensors stay, or keep it once reception is better.
-- [ ] **What comes next:** battery reporting, or step 4.
 
 ## Next
 
-- [ ] Raise `CONFIG_SYSTEM_WORKQUEUE_STACK_SIZE` to 1536 B (peak use 75 % of 1152 B).
-- [ ] Battery for BTHome sensors: Power Source cluster on the bridged endpoints (ZAP change), with BatPercentRemaining.
+- [ ] Step 4, once the thermostat model is decided.
 
 ## Step 4: one thermostat
 
@@ -38,5 +36,7 @@ What's left to do and to decide. Tick items off here; the plan behind the steps 
 - [x] Step 2: commissioned into Apple Home (HomePod as border router)
 - [x] Step 3: BTHome sensors with auto-add, remove/ignore, temperature and humidity
 - [x] Sensors restore after a reboot with the same endpoints and names in Apple Home
+- [x] Battery level of BTHome sensors in Apple Home (Power Source cluster)
+- [x] System work queue stack raised to 1536 B
 - [x] Step 5, first round: RAM, flash and radio measured with two sensors
 - [x] Sensors decided: pvvx firmware with BTHome v2, unencrypted

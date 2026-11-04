@@ -393,6 +393,9 @@ CHIP_ERROR BridgeManager::HandleRead(uint16_t index, ClusterId clusterId,
 								       maxReadLength);
 	case Clusters::Identify::Id:
 		return device->HandleReadIdentify(attributeMetadata->attributeId, buffer, maxReadLength);
+	case Clusters::PowerSource::Id:
+		/* The last known battery state stays readable while the device is unreachable. */
+		return device->HandleReadPowerSource(attributeMetadata->attributeId, buffer, maxReadLength);
 	default:
 		break;
 	}
@@ -469,7 +472,11 @@ void BridgeManager::HandleUpdate(BridgedDeviceDataProvider &dataProvider, Cluste
 			/* If the Bridged Device state was updated successfully, schedule sending Matter data
 			 * report. */
 			auto *device = item.value.mDevice;
-			if (CHIP_NO_ERROR == device->HandleAttributeChange(clusterId, attributeId, data, dataSize)) {
+			const CHIP_ERROR err =
+				clusterId == Clusters::PowerSource::Id
+					? device->HandleWritePowerSource(attributeId, data, dataSize)
+					: device->HandleAttributeChange(clusterId, attributeId, data, dataSize);
+			if (CHIP_NO_ERROR == err) {
 				MatterReportingAttributeChangeCallback(device->GetEndpointId(), clusterId, attributeId);
 			}
 		}

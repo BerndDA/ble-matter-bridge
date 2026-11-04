@@ -151,6 +151,20 @@ config GATEWAY_BTHOME_UNREACHABLE_TIMEOUT_S
 	int "Report a sensor unreachable after this many seconds without packets"
 	default 600
 
+config GATEWAY_BTHOME_BATTERY_WARNING_PCT
+	int "Battery level reported as low (%)"
+	default 20
+	help
+	  At or below this level, the Power Source cluster reports
+	  BatChargeLevel Warning.
+
+config GATEWAY_BTHOME_BATTERY_CRITICAL_PCT
+	int "Battery level reported as critical (%)"
+	default 10
+	help
+	  At or below this level, the Power Source cluster reports
+	  BatChargeLevel Critical and BatReplacementNeeded.
+
 config GATEWAY_BTHOME_QUEUE_SIZE
 	int "Readings queued between the Bluetooth and Matter threads"
 	default 8
