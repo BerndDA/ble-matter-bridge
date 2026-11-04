@@ -5,6 +5,7 @@
  */
 
 #include "ble_connectivity_manager.h"
+#include "sensor_scanner.h"
 #include "ble_bridged_device.h"
 
 #include <bluetooth/gatt_dm.h>
@@ -554,6 +555,8 @@ CHIP_ERROR BLEConnectivityManager::Scan(ScanDoneCallback callback, void *context
 
 	mScanDoneCallback = callback;
 	mScanDoneCallbackContext = context;
+	/* Only one explicit scanner may run: hand the radio over from the background sensor scan. */
+	sensor_scanner_pause(scanTimeoutMs + 500);
 	ret = System::MapErrorZephyr(bt_scan_start(BT_SCAN_TYPE_SCAN_ACTIVE));
 	VerifyOrExit(ret == CHIP_NO_ERROR, );
 
@@ -664,6 +667,7 @@ CHIP_ERROR BLEConnectivityManager::StopScan()
 	}
 
 	mScanActive = false;
+	sensor_scanner_resume();
 
 	return CHIP_NO_ERROR;
 }
@@ -715,6 +719,8 @@ CHIP_ERROR BLEConnectivityManager::Reconnect(BLEBridgedDeviceProvider *provider)
 	char addrStr[BT_ADDR_LE_STR_LEN];
 	bt_addr_le_to_str(&provider->GetBLEBridgedDevice().mAddr, addrStr, sizeof(addrStr));
 
+	/* Connection setup is refused while an explicit scan runs. */
+	sensor_scanner_pause(CONFIG_GATEWAY_SENSOR_SCAN_PAUSE_CONNECT_MS);
 	int err = bt_conn_le_create(&provider->GetBLEBridgedDevice().mAddr, create_param, connParams, &conn);
 
 	if (err) {
@@ -765,6 +771,8 @@ CHIP_ERROR BLEConnectivityManager::Connect(BLEBridgedDeviceProvider *provider, C
 	}
 #endif
 
+	/* Connection setup is refused while an explicit scan runs. */
+	sensor_scanner_pause(CONFIG_GATEWAY_SENSOR_SCAN_PAUSE_CONNECT_MS);
 	int err = bt_conn_le_create(&provider->GetBLEBridgedDevice().mAddr, create_param, connParams, &conn);
 
 	if (err) {

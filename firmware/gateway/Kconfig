@@ -98,6 +98,40 @@ config CHIP_ENABLE_READ_CLIENT
 config NCS_SAMPLE_MATTER_PERSISTENT_STORAGE
 	default y
 
+menu "Gateway sensor scanner"
+
+config GATEWAY_SENSOR_SCAN_INTERVAL
+	int "Background scan interval (x0.625 ms)"
+	default 160
+	help
+	  Time between scan windows of the background passive scan for BTHome sensors.
+	  Default: 160 (100 ms).
+
+config GATEWAY_SENSOR_SCAN_WINDOW
+	int "Background scan window (x0.625 ms)"
+	default 40
+	help
+	  Listening time per scan interval. Keep it well below the interval so Thread
+	  keeps enough radio time. Default: 40 (25 ms, 25 % duty cycle).
+
+config GATEWAY_SENSOR_SCAN_RETRY_MS
+	int "Background scan restart check interval (ms)"
+	default 2000
+
+config GATEWAY_SENSOR_SEEN_MAX
+	int "Number of sensors kept in the 'heard' table"
+	default 16
+
+config GATEWAY_SENSOR_SCAN_PAUSE_CONNECT_MS
+	int "Background scan pause while a GATT connection is being created (ms)"
+	default 5000
+
+module = GATEWAY_SENSOR_SCANNER
+module-str = Gateway sensor scanner
+source "subsys/logging/Kconfig.template.log_config"
+
+endmenu
+
 # Thread networking
 if OPENTHREAD
 

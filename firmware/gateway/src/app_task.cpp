@@ -5,6 +5,7 @@
  */
 
 #include "app_task.h"
+#include "sensor_scanner.h"
 
 #ifdef CONFIG_BRIDGED_DEVICE_BT
 #include "ble_bridged_device_factory.h"
@@ -194,6 +195,12 @@ CHIP_ERROR AppTask::Init()
 			return bleInitError;
 		}
 #endif
+
+		/* Background passive scan for advertisement-only sensors (BTHome). */
+		if (sensor_scanner_init() != 0) {
+			LOG_ERR("Sensor scanner initialization failed");
+			return CHIP_ERROR_INTERNAL;
+		}
 
 		/* Initialize bridge manager */
 		CHIP_ERROR bridgeMgrInitError = Nrf::BridgeManager::Instance().Init(RestoreBridgedDevices);

@@ -63,6 +63,8 @@ target_sources(app PRIVATE
   src/bridged_device_types/humidity_sensor.cpp
   src/ble/data_providers/ble_environmental_data_provider.cpp
   src/sensors/bthome.c
+  src/sensors/sensor_scanner.c
+  src/sensors/sensor_shell.c
   ${ZEPHYR_NRF_MODULE_DIR}/samples/matter/common/src/binding/binding_handler.cpp
 )
 
