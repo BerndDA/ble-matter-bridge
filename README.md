@@ -15,12 +15,18 @@ Firmware for an nRF52840 gateway. It brings existing BLE temperature/humidity se
 ## Status
 
 - Toolchain: nRF Connect SDK v3.4.1. `hello-world` builds and runs on the nRF52840 DK.
-- Matter Bridge on the nRF52840: the port builds but hasn't been flashed or tested on hardware yet. It adds `boards/nrf52840dk_nrf52840.{overlay,conf}`, which takes the overlay from the SDK's Matter template sample and reduces the BLE connections to 3. Memory use for the build with BLE bridging (`CONFIG_BRIDGED_DEVICE_BT=y`):
+- Matter Bridge on the nRF52840: the port builds, boots on the nRF52840 DK and its Matter shell responds. It hasn't been commissioned yet. The port adds two sets of board files, both copied from the SDK's Matter template sample:
+  - `boards/nrf52840dk_nrf52840.{overlay,conf}` for the app, with BLE connections reduced to 3
+  - `sysbuild/mcuboot/boards/nrf52840dk_nrf52840.{overlay,conf}` for the bootloader. Without these, MCUboot uses the default flash layout, finds no app and halts silently.
+
+  Memory use for the build with BLE bridging (`CONFIG_BRIDGED_DEVICE_BT=y`):
 
   | Image | Flash | RAM (reserved at build time) |
   | --- | --- | --- |
   | Bridge app | 843 KB of 975 KB (86%) | 205 KB of 256 KB (78%) |
-  | MCUboot | 24 KB of 48 KB (50%) | 16 KB |
+  | MCUboot | 24 KB of 28 KB (85%) | 18 KB |
+
+  The firmware uses Matter's default test credentials (QR `MT:06PS042C00KA0648G00`, manual code `34970112332`). Run `matter onboardingcodes ble` in the shell to print them.
 
 ## Building the spike
 
@@ -34,3 +40,11 @@ west build -b nrf52840dk/nrf52840 --sysbuild -d spike/matter-bridge-nrf52840/bui
 ```
 
 If `/opt/nordic` is a symlink to another drive, use the real path for the SDK and toolchain. Otherwise the linker script includes fail to resolve.
+
+To flash, use `--erase` the first time so old settings are cleared:
+
+```sh
+west flash -d spike/matter-bridge-nrf52840/build --erase
+```
+
+On the command line, `west flash` needs the `device` command for nrfutil. The VS Code extension ships one, so set `NRFUTIL_HOME` to the extension's `platform/nrfutil` folder.
