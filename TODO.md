@@ -16,7 +16,6 @@ What's left to do and to decide. Tick items off here; the plan behind the steps 
 
 - [ ] Raise `CONFIG_SYSTEM_WORKQUEUE_STACK_SIZE` to 1536 B (peak use 75 % of 1152 B).
 - [ ] Battery for BTHome sensors: Power Source cluster on the bridged endpoints (ZAP change), with BatPercentRemaining.
-- [ ] Confirm that sensors restore after a reboot with the same endpoints and names in Apple Home.
 
 ## Step 4: one thermostat
 
@@ -38,5 +37,6 @@ What's left to do and to decide. Tick items off here; the plan behind the steps 
 - [x] Step 1: toolchain and the bridge on the nRF52840 DK
 - [x] Step 2: commissioned into Apple Home (HomePod as border router)
 - [x] Step 3: BTHome sensors with auto-add, remove/ignore, temperature and humidity
+- [x] Sensors restore after a reboot with the same endpoints and names in Apple Home
 - [x] Step 5, first round: RAM, flash and radio measured with two sensors
 - [x] Sensors decided: pvvx firmware with BTHome v2, unencrypted
