@@ -15,6 +15,8 @@ Firmware for an nRF52840 gateway. It brings existing BLE temperature/humidity se
 
 ## Status
 
+Open tasks and decisions are in [TODO.md](TODO.md).
+
 | Step (from the design doc) | State |
 | --- | --- |
 | 1. Toolchain and stock bridge on a DK | Done. See [the spike](spike/matter-bridge-nrf52840/). |

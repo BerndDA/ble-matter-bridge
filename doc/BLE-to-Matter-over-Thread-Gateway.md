@@ -85,4 +85,4 @@ Build up in five steps, proving the stock sample first and the hardest device ty
 Two facts decide how much custom work this is.
 
 - [ ] Exact sensor and thermostat models (these set the advertisement format and the GATT work)
-- [ ] Whether the sensors can run open firmware such as BTHome
+- [x] Whether the sensors can run open firmware such as BTHome (yes: pvvx firmware with BTHome v2)
