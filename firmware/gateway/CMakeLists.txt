@@ -45,6 +45,7 @@ target_include_directories(app PRIVATE
   src/core
   src/ble
   src/ble/data_providers
+  src/sensors
 )
 
 target_sources(app PRIVATE
@@ -61,6 +62,7 @@ target_sources(app PRIVATE
   src/bridged_device_types/temperature_sensor.cpp
   src/bridged_device_types/humidity_sensor.cpp
   src/ble/data_providers/ble_environmental_data_provider.cpp
+  src/sensors/bthome.c
   ${ZEPHYR_NRF_MODULE_DIR}/samples/matter/common/src/binding/binding_handler.cpp
 )
 
