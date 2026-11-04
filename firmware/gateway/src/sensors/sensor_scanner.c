@@ -87,9 +87,14 @@ static void on_scan_recv(const struct bt_le_scan_recv_info *info, struct net_buf
 	/* Sensors repeat each measurement in several advertisements with the same packet ID. */
 	new_measurement = !(r.fields & BTHOME_HAS_PACKET_ID) || e->measurements == 0 ||
 			  !(e->last.fields & BTHOME_HAS_PACKET_ID) || e->last.packet_id != r.packet_id;
+	const int64_t now = k_uptime_get();
+
+	if (e->packets > 0 && now - e->last_seen_ms > e->max_gap_ms) {
+		e->max_gap_ms = (uint32_t)(now - e->last_seen_ms);
+	}
 	merge_reading(&e->last, &r);
 	e->rssi = info->rssi;
-	e->last_seen_ms = k_uptime_get();
+	e->last_seen_ms = now;
 	e->packets++;
 	if (new_measurement) {
 		e->measurements++;

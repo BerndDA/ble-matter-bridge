@@ -27,6 +27,7 @@ struct sensor_seen {
 	int64_t last_seen_ms; /* k_uptime_get() of the last BTHome packet */
 	uint32_t packets; /* BTHome packets received (including repeats) */
 	uint32_t measurements; /* distinct packet IDs received */
+	uint32_t max_gap_ms; /* longest time between two BTHome packets since boot */
 };
 
 /* Called for each new measurement (new packet ID), from the Bluetooth RX thread. Keep it short. */

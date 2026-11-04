@@ -21,7 +21,7 @@ Firmware for an nRF52840 gateway. It brings existing BLE temperature/humidity se
 | 2. Commission into a controller | Done. Commissioned into Apple Home, with a HomePod as the Thread border router. |
 | 3. Advertisement-based sensors | Done for temperature and humidity: pvvx sensors (BTHome v2, unencrypted) are added to Matter automatically and show up in Apple Home. Battery is still missing. |
 | 4. One thermostat (connect on demand) | Not started |
-| 5. Measure, then scale up or move to the nRF5340 | Not started |
+| 5. Measure, then scale up or move to the nRF5340 | First measurement done with two sensors, see [doc/measurements.md](doc/measurements.md). The nRF52840 has enough headroom, and Thread stays stable while scanning. Far sensors are the weak point. To be measured again after step 4. |
 
 `firmware/gateway` is the spike with the parts the gateway doesn't need removed: the simulated devices, the on/off light and switch device types, the smart plug variant and the nRF5340/nRF54 board files. Memory use on the nRF52840 DK:
 
@@ -43,10 +43,13 @@ Shell commands (in nRF Terminal, 115200 baud):
 | `gateway remove <addr>` | Remove a sensor (for example a neighbour's) and ignore it from now on |
 | `gateway unignore <addr>` | Allow an ignored sensor to be added again |
 | `gateway ignored` | List ignored addresses |
+| `gateway pause <s>` | Pause the background scan for measurements (`0` resumes) |
 
 Settings in [Kconfig](firmware/gateway/Kconfig): `GATEWAY_BTHOME_AUTO_ADD`, `GATEWAY_BTHOME_MAX_SENSORS` (default 6), `GATEWAY_BTHOME_UNREACHABLE_TIMEOUT_S` (default 600), and the scan window and interval.
 
 Parser tests run on the Mac: `make -C firmware/gateway/tests/host/bthome`.
+
+For RAM, stack and radio measurements, use the diagnostics build (`-DEXTRA_CONF_FILE=diag.conf`) with `scripts/diag-capture.py` and `scripts/diag-summary.py`. See [doc/measurements.md](doc/measurements.md).
 
 ## Building and flashing
 

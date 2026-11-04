@@ -4,3 +4,7 @@ build.log
 
 # macOS
 .DS_Store
+
+# Diagnostic captures
+measurements/
+__pycache__/

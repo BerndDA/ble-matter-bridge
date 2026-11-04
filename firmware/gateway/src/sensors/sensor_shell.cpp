@@ -5,6 +5,7 @@
  *   gateway remove <addr> [type]       remove a bridged sensor and ignore it from now on
  *   gateway unignore <addr> [type]     allow an ignored sensor to be auto-added again
  *   gateway ignored                    list ignored addresses
+ *   gateway pause <seconds>            pause the background scan (0 resumes), for measurements
  *
  * <addr> is written as printed by `gateway seen`, e.g. A4:C1:38:0C:54:AA.
  * [type] is "public" (default) or "random".
@@ -52,8 +53,8 @@ int CmdSeen(const struct shell *sh, size_t, char **)
 	const int64_t now = k_uptime_get();
 
 	shell_print(sh, "Background scan: %s", sensor_scanner_is_scanning() ? "running" : "paused/idle");
-	shell_print(sh, "%-30s %5s %6s %8s %7s %5s %6s %6s", "Address", "RSSI", "Age s", "Temp C", "Hum %", "Bat%",
-		    "mV", "Meas");
+	shell_print(sh, "%-30s %5s %6s %8s %7s %5s %6s %6s %7s %7s", "Address", "RSSI", "Age s", "Temp C", "Hum %",
+		    "Bat%", "mV", "Meas", "Pkts", "MaxGap");
 
 	for (size_t i = 0; i < n; i++) {
 		const sensor_seen &s = list[i];
@@ -77,8 +78,9 @@ int CmdSeen(const struct shell *sh, size_t, char **)
 			snprintk(mv, sizeof(mv), "%u", s.last.voltage_mv);
 		}
 
-		shell_print(sh, "%-30s %5d %6lld %8s %7s %5s %6s %6u", addr, s.rssi, (now - s.last_seen_ms) / 1000,
-			    temp, hum, bat, mv, s.measurements);
+		shell_print(sh, "%-30s %5d %6lld %8s %7s %5s %6s %6u %7u %6us", addr, s.rssi,
+			    (now - s.last_seen_ms) / 1000, temp, hum, bat, mv, s.measurements, s.packets,
+			    s.max_gap_ms / 1000);
 	}
 	shell_print(sh, "Total: %u sensor(s)", unsigned(n));
 	return 0;
@@ -190,6 +192,20 @@ int CmdIgnored(const struct shell *sh, size_t, char **)
 	return 0;
 }
 
+int CmdPause(const struct shell *sh, size_t, char **argv)
+{
+	const long seconds = strtol(argv[1], nullptr, 10);
+
+	if (seconds <= 0) {
+		sensor_scanner_resume();
+		shell_print(sh, "Background scan resumed");
+	} else {
+		sensor_scanner_pause(uint32_t(seconds) * 1000);
+		shell_print(sh, "Background scan paused for %ld s", seconds);
+	}
+	return 0;
+}
+
 } /* namespace */
 
 SHELL_STATIC_SUBCMD_SET_CREATE(
@@ -203,6 +219,11 @@ SHELL_STATIC_SUBCMD_SET_CREATE(
 		      "Allow an ignored sensor to be auto-added again.\n"
 		      "Usage: unignore <addr> [public|random]",
 		      CmdUnignore, 2, 1),
-	SHELL_CMD_ARG(ignored, NULL, "List ignored sensor addresses.", CmdIgnored, 1, 0), SHELL_SUBCMD_SET_END);
+	SHELL_CMD_ARG(ignored, NULL, "List ignored sensor addresses.", CmdIgnored, 1, 0),
+	SHELL_CMD_ARG(pause, NULL,
+		      "Pause the background scan (for measurements); 0 resumes.\n"
+		      "Usage: pause <seconds>",
+		      CmdPause, 2, 0),
+	SHELL_SUBCMD_SET_END);
 
 SHELL_CMD_REGISTER(gateway, &sub_gateway, "BLE gateway commands", NULL);
