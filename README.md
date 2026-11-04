@@ -15,7 +15,12 @@ Firmware for an nRF52840 gateway. It brings existing BLE temperature/humidity se
 ## Status
 
 - Toolchain: nRF Connect SDK v3.4.1. `hello-world` builds and runs on the nRF52840 DK.
-- Matter Bridge on the nRF52840: a trial build is in progress. The port adds `boards/nrf52840dk_nrf52840.{overlay,conf}`, which takes the overlay from the SDK's Matter template sample and reduces the BLE connections to 3.
+- Matter Bridge on the nRF52840: the port builds but hasn't been flashed or tested on hardware yet. It adds `boards/nrf52840dk_nrf52840.{overlay,conf}`, which takes the overlay from the SDK's Matter template sample and reduces the BLE connections to 3. Memory use for the build with BLE bridging (`CONFIG_BRIDGED_DEVICE_BT=y`):
+
+  | Image | Flash | RAM (reserved at build time) |
+  | --- | --- | --- |
+  | Bridge app | 843 KB of 975 KB (86%) | 205 KB of 256 KB (78%) |
+  | MCUboot | 24 KB of 48 KB (50%) | 16 KB |
 
 ## Building the spike
 
