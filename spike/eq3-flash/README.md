@@ -30,6 +30,14 @@ All thermostats advertise the same name and macOS hides MAC addresses, so they a
 4. Set the date with the eQ-3 app. Until then the thermostat does nothing, not even broadcast.
 5. `scan.py` now shows it with firmware `custom`.
 
+### If flashing stops at once with "attribute could not be found"
+
+Stock firmware 1.48 always requires pairing with a code; the PIN can't be turned off there (the "turn the PIN off" advice in flash.py is for the custom firmware). If macOS once connected to the thermostat before pairing worked, it may have cached the services without the notification descriptor, and flash.py fails right at the start, before anything is written. Fix:
+
+1. System Settings › Bluetooth › `CC-RT-BLE` › **Forget This Device**, then turn Bluetooth off and on.
+2. Hold BOOST (the centre button) for about 3 s; the thermostat shows a code. Enter it if macOS asks.
+3. Check with `.venv/bin/python gatt_dump.py wohnzimmer` (read-only): under `d0e8434d…` there must be a line `desc 00002902-…`. Then flash.
+
 Back to the stock firmware: `flash.py wohnzimmer --release 1.48`.
 
 Names are stored in `~/.config/eq3-firmware-mod/devices.json`, where `flash.py` also reads them. The UUIDs are specific to this Mac.
