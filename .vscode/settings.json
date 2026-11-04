@@ -1,5 +1,6 @@
 {
     "nrf-connect.applications": [
+        "${workspaceFolder}/firmware/gateway",
         "${workspaceFolder}/hello-world",
         "${workspaceFolder}/spike/matter-bridge-nrf52840"
     ]

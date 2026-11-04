@@ -1,0 +1,124 @@
+#
+# BLE-to-Matter-over-Thread gateway.
+# Based on the nRF Connect SDK Matter Bridge application
+# (Copyright (c) 2023 Nordic Semiconductor, LicenseRef-Nordic-5-Clause).
+#
+mainmenu "BLE-to-Matter-over-Thread Gateway"
+
+config BRIDGE_TEMPERATURE_SENSOR_BRIDGED_DEVICE
+	bool "Support for Temperature Sensor bridged device"
+	default y
+
+config BRIDGE_HUMIDITY_SENSOR_BRIDGED_DEVICE
+	bool "Support for Humidity Sensor bridged device"
+	default y
+
+# The gateway always bridges real Bluetooth LE devices; the simulated providers of
+# the original sample were removed. The symbol is kept because the bridge core
+# code uses it to enable the Bluetooth LE parts.
+config BRIDGED_DEVICE_BT
+	bool
+	default y
+
+config BT_CENTRAL
+	default y
+
+config BT_SCAN
+	default y
+
+config BT_SCAN_FILTER_ENABLE
+	default y
+
+# Configure how many Bluetooth LE service UUIDs the bridge can scan for.
+config BT_SCAN_UUID_CNT
+	default 2
+
+config BT_SCAN_ADDRESS_CNT
+	default 1
+
+config BT_GATT_CLIENT
+	default y
+
+config BT_GATT_DM
+	default y
+
+config BT_EXT_ADV
+	default y
+
+config BT_SMP
+	default y
+
+if BT_SMP
+
+config BT_SETTINGS
+	default y
+
+# Use two Bluetooth LE identities. The first one is used by the peripheral for Matter service
+# advertising purposes, and the other is used by the bridge central.
+config BT_ID_MAX
+	default 2
+
+config BT_EXT_ADV_LEGACY_SUPPORT
+	default y
+
+endif
+
+config BRIDGE_BLE_DEVICE_POLLING_INTERVAL
+	int "BLE humidity measurement readout polling interval in ms"
+	default 3000
+
+if BRIDGE_TEMPERATURE_SENSOR_BRIDGED_DEVICE
+
+config BRIDGE_TEMPERATURE_SENSOR_MIN_MEASURED_VALUE
+	int "Default minimum measured value allowed by the bridged temperature sensor device"
+	default -20
+
+config BRIDGE_TEMPERATURE_SENSOR_MAX_MEASURED_VALUE
+	int "Default maximum measured value allowed by the bridged temperature sensor device"
+	default 60
+
+endif
+
+if BRIDGE_HUMIDITY_SENSOR_BRIDGED_DEVICE
+
+config BRIDGE_HUMIDITY_SENSOR_MIN_MEASURED_VALUE
+	int "Default minimum measured value allowed by the bridged humidity sensor device"
+	default 0
+
+config BRIDGE_HUMIDITY_SENSOR_MAX_MEASURED_VALUE
+	int "Default maximum measured value allowed by the bridged humidity sensor device"
+	default 100
+
+endif
+
+# Enable Read Client functionality for all build configurations.
+config CHIP_ENABLE_READ_CLIENT
+	default y
+
+config NCS_SAMPLE_MATTER_PERSISTENT_STORAGE
+	default y
+
+# Thread networking
+if OPENTHREAD
+
+choice OPENTHREAD_NORDIC_LIBRARY_CONFIGURATION
+	default OPENTHREAD_NORDIC_LIBRARY_FTD
+endchoice
+
+choice OPENTHREAD_DEVICE_TYPE
+	default OPENTHREAD_FTD
+endchoice
+
+endif # OPENTHREAD
+
+# Dummy Kconfig just to select experimental for some of the configurations.
+config BRIDGE_EXPERIMENTAL
+	bool
+	default y if OPENTHREAD
+	select EXPERIMENTAL
+
+source "$(ZEPHYR_CONNECTEDHOMEIP_MODULE_DIR)/config/nrfconnect/chip-module/Kconfig.features"
+source "$(ZEPHYR_CONNECTEDHOMEIP_MODULE_DIR)/config/nrfconnect/chip-module/Kconfig.defaults"
+rsource "src/core/Kconfig"
+source "$(ZEPHYR_NRF_MODULE_DIR)/samples/matter/common/src/Kconfig"
+source "Kconfig.zephyr"
