@@ -12,7 +12,7 @@ What's left to do and to decide. Tick items off here; the plan behind the steps 
 
 ## Next
 
-- [ ] Step 4: measure again with thermostat commands (step 5).
+- [ ] Nothing scheduled; pick from Decisions or Later.
 
 ## Step 4: one thermostat
 
@@ -21,13 +21,13 @@ What's left to do and to decide. Tick items off here; the plan behind the steps 
 - [x] Checked in Apple Home.
 - [x] Setpoint and Off/Heat from Apple Home: one short GATT connection per command, 7–13 s until the thermostat has it. Needs the thermostat's PIN off ("Ask for a PIN" in the web app, or `PIn CodE` in its Bluetooth menu).
 - [x] Decided: thermostats run without PIN. The gateway does not pair; anyone in Bluetooth range could control or reflash a thermostat.
-- [ ] Connect sooner: many connect attempts miss the advertisement or drop at once (HCI 0x3E); try connecting right after the scanner hears the thermostat.
 - [x] Decided: thermostats run in manual mode. Every target from Apple Home is sent as manual + target (`40 <0x40 | temp×2>`), so the weekly schedule does not override it (`CONFIG_GATEWAY_EQ3_TARGET_SETS_MANUAL`).
-- [ ] Command queue ahead of routine polls, with a timeout per connection attempt.
-- [ ] Measure again (step 5) with the thermostat connected.
+- [x] Command queue with a timeout per attempt. No routine polls are needed: the values come from the broadcasts.
+- [x] Measured again with thermostat commands ([measurements](doc/measurements.md)): 9 of 9 answered, Thread stable; bt_tx_processor stack and system heap raised.
 
 ## Later
 
+- [ ] eQ-3: connect right after the scanner hears the thermostat, if commands start failing. Now about half of the first attempts miss the advertisement or drop at once (HCI 0x3E); the retry has always worked, 7–14 s per command.
 - [ ] Own Matter credentials and DAC instead of the test ones; own MCUboot signing key instead of the SDK's debug key.
 - [ ] OTA updates over Matter.
 - [ ] Encrypted BTHome (bindkey per sensor).

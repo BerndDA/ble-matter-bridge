@@ -8,6 +8,10 @@ Needs the diagnostics build (firmware/gateway/diag.conf) and a free serial port
     python3 scripts/diag-capture.py --minutes 60 --interval 60
 
 Output: measurements/diag-<timestamp>.log (one block per sample, with timestamps).
+
+With --thermostat, every --target-every samples an eQ-3 target is sent, cycling
+through --targets (the last one is the target the thermostat is left at), e.g.
+    python3 scripts/diag-capture.py --minutes 20 --thermostat 00:1A:22:0F:3F:02 --targets 18.5,18
 """
 
 import argparse
@@ -58,6 +62,24 @@ def run(ser, cmd, wait=1.5):
     return ANSI.sub(b"", out).decode(errors="replace").replace("\r", "")
 
 
+# Log lines of the eQ-3 client, kept while waiting between samples.
+EQ3_LINE = re.compile(r"Command 0x|Reply:|attempt|Attempt|Connect failed|failed after|Disconnected: |Subscribe|Discovery")
+
+
+def wait_and_keep(ser, log, seconds):
+    """Waits, but reads the serial port meanwhile and keeps the eQ-3 client's log lines."""
+    end = time.time() + seconds
+    rest = ""
+    while time.time() < end:
+        chunk = ANSI.sub(b"", ser.read(4096)).decode(errors="replace").replace("\r", "")
+        lines = (rest + chunk).split("\n")
+        rest = lines.pop()
+        for line in lines:
+            if EQ3_LINE.search(line):
+                log.write(f"{datetime.datetime.now():%H:%M:%S} {line}\n")
+    log.flush()
+
+
 def sample(ser, log, commands, label):
     stamp = datetime.datetime.now().isoformat(timespec="seconds")
     log.write(f"\n===== {label} {stamp} =====\n")
@@ -75,6 +97,9 @@ def main():
     ap.add_argument("--out", default=None, help="log file (default: measurements/diag-<time>.log)")
     ap.add_argument("--ab", action="store_true",
                     help="A/B test: pause the BLE background scan for the second half of the capture")
+    ap.add_argument("--thermostat", metavar="ADDR", help="eQ-3 thermostat to send targets to")
+    ap.add_argument("--targets", default="18.5,18", help="targets to cycle through (default 18.5,18)")
+    ap.add_argument("--target-every", type=int, default=2, help="send a target every N samples (default 2)")
     args = ap.parse_args()
 
     port = args.port or find_port()
@@ -94,7 +119,7 @@ def main():
         paused = False
         print(f"Logging to {out} until {datetime.datetime.fromtimestamp(end):%H:%M}")
         while time.time() < end:
-            time.sleep(max(0.0, args.interval - 12))
+            wait_and_keep(ser, log, max(0.0, args.interval - 12))
             n += 1
             if args.ab and not paused and time.time() >= half:
                 sample(ser, log, EDGE_COMMANDS, "before pause")
@@ -103,6 +128,13 @@ def main():
                 print("BLE scan paused (B phase)", flush=True)
             sample(ser, log, SAMPLE_COMMANDS, f"sample {n}{' (scan paused)' if paused else ''}")
             print(f"sample {n}", flush=True)
+            if args.thermostat and n % args.target_every == 0:
+                targets = args.targets.split(",")
+                target = targets[(n // args.target_every - 1) % len(targets)]
+                # The result arrives later as log lines ("Reply:" or "failed after"), inside later outputs.
+                log.write(f"\n--- gateway target {args.thermostat} {target}\n"
+                          + run(ser, f"gateway target {args.thermostat} {target}", wait=0.5))
+                print(f"target {target}", flush=True)
         sample(ser, log, EDGE_COMMANDS + SAMPLE_COMMANDS, "end")
         if paused:
             log.write("--- gateway pause 0\n" + run(ser, "gateway pause 0"))

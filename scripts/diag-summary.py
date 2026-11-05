@@ -117,6 +117,16 @@ def main():
         if len(b) >= 2:
             phase_report("B (BLE scan paused)", b[0], b[-1])
 
+    text = open(sys.argv[1], errors="replace").read()
+    sent = len(re.findall(r"^--- gateway target ", text, re.M))
+    if sent:
+        print("\n## eQ-3 thermostat commands")
+        print(f"  sent {sent}, answered {text.count('I: Reply:')}, failed {text.count('failed after')}")
+        print(f"  attempts {len(re.findall(r'I: Command 0x.. to .*attempt', text))},"
+              f" connect failures {text.count('Connect failed')},"
+              f" dropped at connect (HCI 0x3E) {len(re.findall(r'Disconnected: .*reason 62', text))},"
+              f" attempt timeouts {text.count('Attempt timed out')}")
+
     last_with_stacks = [s for s in samples if "kernel thread stacks" in s["cmds"]][-1]
     print("\n## Stacks (peak use since boot)")
     for name, size, unused, used in STACK_ROW.findall(last_with_stacks["cmds"]["kernel thread stacks"]):
