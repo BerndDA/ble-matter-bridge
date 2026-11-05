@@ -1,0 +1,89 @@
+/*
+ * Pro Micro nRF52840 (nice!nano clone, also sold as "SuperMini").
+ *
+ * No external flash and no MCUboot: the app starts at 0x0 and uses the
+ * internal flash up to the factory data and settings partitions, which sit
+ * at the same addresses as on the DK. The factory UF2 bootloader and the
+ * SoftDevice area are erased by the first SWD flash.
+ */
+
+/delete-node/ &boot_partition;
+/delete-node/ &slot0_partition;
+/delete-node/ &slot1_partition;
+/delete-node/ &storage_partition;
+
+/ {
+	chosen {
+		zephyr,code-partition = &slot0_partition;
+	};
+
+	/*
+	 * Optional function button: a push button between P1.06 and GND.
+	 * Hold it about 6 s for a factory reset, as Button 1 on the DK.
+	 * Unwired, the pull-up keeps it released.
+	 */
+	buttons {
+		compatible = "gpio-keys";
+
+		button0: button_0 {
+			gpios = <&gpio1 6 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>;
+			label = "Function button";
+			zephyr,code = <INPUT_KEY_0>;
+		};
+	};
+
+	aliases {
+		sw0 = &button0;
+	};
+};
+
+&flash0 {
+	partitions {
+		ranges;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		slot0_partition: partition@0 {
+			compatible = "zephyr,mapped-partition";
+			label = "image-0";
+			reg = <0x00000000 DT_SIZE_K(988)>;
+		};
+
+		factory_data_partition: partition@f7000 {
+			compatible = "zephyr,mapped-partition";
+			label = "factory-data";
+			reg = <0x000f7000 DT_SIZE_K(4)>;
+		};
+
+		storage_partition: partition@f8000 {
+			compatible = "zephyr,mapped-partition";
+			label = "storage";
+			reg = <0x000f8000 DT_SIZE_K(32)>;
+		};
+	};
+};
+
+/* Unused peripherals. P1.06 above is i2c1's SCL by default. */
+&uart0 {
+	status = "disabled";
+};
+
+&i2c0 {
+	status = "disabled";
+};
+
+&i2c1 {
+	status = "disabled";
+};
+
+&spi2 {
+	status = "disabled";
+};
+
+&pwm0 {
+	status = "disabled";
+};
+
+&adc {
+	status = "disabled";
+};

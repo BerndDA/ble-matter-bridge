@@ -78,6 +78,8 @@ make flash-erase    # full erase: the gateway must be commissioned again
 make release        # release configuration (prj_release.conf) into build-release
 ```
 
+Add `BOARD=promicro` to any target for the Pro Micro nRF52840. See [Pro Micro nRF52840](#pro-micro-nrf52840).
+
 The targets set up the SDK themselves through `scripts/ncs-env.sh`. For `west` by hand, run `source scripts/ncs-env.sh` first. The script uses the external drive if it's mounted and `/opt/nordic` otherwise. Set `NCS_ROOT` to use a different location. If `/opt/nordic` is a symlink, point `NCS_ROOT` at the real path instead, because the symlink breaks some linker script includes. It also points `NRFUTIL_HOME` at the nrfutil that ships with the VS Code extension, which `west flash` needs.
 
 ### Commissioning
@@ -88,10 +90,39 @@ The firmware uses Matter's default test credentials:
 
 Run `matter onboardingcodes ble` in the shell to print them. Apple Home shows an "Uncertified Accessory" warning; choose **Add Anyway**. To factory-reset the gateway, hold **Button 1** on the DK for about 6 seconds.
 
+### Pro Micro nRF52840
+
+The Pro Micro (also sold as nice!nano clone or "SuperMini") is a second option next to the DK. It runs the same firmware with these differences:
+
+| | DK | Pro Micro |
+| --- | --- | --- |
+| Bootloader | MCUboot, Matter OTA prepared | none, no OTA (no external flash for a second slot) |
+| Flash (debug / release) | 866 / 783 KB of 952 KB | 845 / 769 KB of 988 KB |
+| RAM (reserved at build time) | 213 KB | 218 KB (USB stack) |
+| Shell | UART through the J-Link | USB CDC on the board's own USB port |
+| Factory reset | hold Button 1 for 6 s | optional button between P1.06 and GND, held for 6 s; or `make flash-erase BOARD=promicro` |
+| Status LED | LED1 | the LED on P0.15 |
+| 32 kHz clock | crystal | internal RC oscillator, because many clones have no crystal |
+
+**Wiring.** The DK flashes the Pro Micro through its **Debug Out** header (P20). Connect the header to the SWD pads on the back of the Pro Micro: SWDIO, SWDCLK, GND, and VTref (pin 1) to the Pro Micro's 3.3 V. The DK switches to the external target when it sees a voltage on VTref. Power the Pro Micro over its own USB port, which also carries the shell.
+
+**First flash.** The board ships with the Adafruit UF2 bootloader, and its data sits where the gateway keeps its settings. Flash once with a full erase, which also removes the UF2 bootloader:
+
+```sh
+make flash-erase BOARD=promicro   # once; afterwards `make flash BOARD=promicro`
+make term BOARD=promicro          # shell over the Pro Micro's USB port
+```
+
+The build folders end in `-promicro`. `make measure` only finds the DK's port.
+
+Both boards use the same Matter test credentials. Commission one gateway at a time.
+
 ## Notes on the nRF52840 port
 
 The nRF52840 DK isn't a supported board for the SDK's Matter Bridge. Two sets of board files, both copied from the SDK's Matter template sample, make it work:
 - `boards/nrf52840dk_nrf52840.{overlay,conf}`: the Matter flash layout with the 8 MB external flash, and BLE connections reduced to 3.
 - `sysbuild/mcuboot/boards/nrf52840dk_nrf52840.{overlay,conf}`: the same layout for the bootloader. Without these, MCUboot looks for the app at the wrong address and halts silently.
+
+The Pro Micro uses the board definition that ships with Zephyr (`promicro_nrf52840/nrf52840`), plus `boards/promicro_nrf52840_nrf52840.{overlay,conf}`: the flash layout without MCUboot (app from 0x0, factory data and settings at the same addresses as on the DK), the function button, and the RC clock. `Kconfig.sysbuild` turns off MCUboot and Matter OTA for this board.
 
 MCUboot is currently signed with the SDK's default debug key. Generate a project key before relying on firmware updates.
