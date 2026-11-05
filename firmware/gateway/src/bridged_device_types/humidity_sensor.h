@@ -17,6 +17,9 @@ public:
 	uint16_t GetMaxMeasuredValue() { return mMaxMeasuredValue; }
 
 	uint16_t GetDeviceType() const override { return Nrf::MatterBridgedDevice::DeviceType::HumiditySensor; }
+	/* This gateway bridges only BTHome sensors running pvvx firmware; the hardware model is not broadcast. */
+	const char *GetVendorName() const override { return "pvvx firmware"; }
+	const char *GetProductName() const override { return "BTHome sensor"; }
 	CHIP_ERROR HandleRead(chip::ClusterId clusterId, chip::AttributeId attributeId, uint8_t *buffer,
 			      uint16_t maxReadLength) override;
 	CHIP_ERROR HandleReadRelativeHumidityMeasurement(chip::AttributeId attributeId, uint8_t *buffer,

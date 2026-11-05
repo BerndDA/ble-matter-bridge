@@ -49,7 +49,7 @@ struct Request {
 	uint8_t mLen;
 };
 
-K_MSGQ_DEFINE(sQueue, sizeof(Request), 4, 4);
+K_MSGQ_DEFINE(sQueue, sizeof(Request), CONFIG_GATEWAY_EQ3_QUEUE_SIZE, 4);
 
 enum Event : uint32_t {
 	kEvtStart = BIT(0),

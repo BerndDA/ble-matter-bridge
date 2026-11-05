@@ -51,7 +51,7 @@ void Init(Eq3Callback callback);
 
 /*
  * Queues a command (at most 4 bytes, every argument included). Returns 0, or
- * -ENOMEM if the queue is full, -EINVAL for a bad length.
+ * -ENOMEM if the queue (CONFIG_GATEWAY_EQ3_QUEUE_SIZE) is full, -EINVAL for a bad length.
  */
 int Send(const bt_addr_le_t &addr, const uint8_t *cmd, size_t len);
 

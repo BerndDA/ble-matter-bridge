@@ -137,11 +137,12 @@ config GATEWAY_BTHOME_AUTO_ADD
 	  on (shell: gateway remove / gateway unignore).
 
 config GATEWAY_BTHOME_MAX_SENSORS
-	int "Maximum number of bridged BTHome sensors"
-	default 6
+	int "Maximum number of bridged BTHome devices (sensors and thermostats)"
+	default 10
 	help
-	  Each sensor uses one bridge provider and two dynamic endpoints, see
-	  BRIDGE_MAX_BRIDGED_DEVICES_NUMBER and BRIDGE_MAX_DYNAMIC_ENDPOINTS_NUMBER.
+	  Each device uses one bridge provider; a sensor uses two dynamic
+	  endpoints, a thermostat one. See BRIDGE_MAX_BRIDGED_DEVICES_NUMBER and
+	  BRIDGE_MAX_DYNAMIC_ENDPOINTS_NUMBER.
 
 config GATEWAY_BTHOME_IGNORE_MAX
 	int "Maximum number of ignored BTHome sensor addresses"
@@ -180,6 +181,13 @@ config GATEWAY_EQ3_TARGET_SETS_MANUAL
 	  Sends 40 <manual | target> instead of 41 <target>, so the target
 	  stays until the next change instead of only until the next switch
 	  point of the thermostat's weekly schedule.
+
+config GATEWAY_EQ3_QUEUE_SIZE
+	int "eQ-3 commands that can wait while one runs"
+	default 8
+	help
+	  Commands run one at a time, about 10 s each. A scene that changes
+	  every thermostat queues one command per thermostat.
 
 config GATEWAY_EQ3_ATTEMPTS
 	int "Attempts per eQ-3 thermostat command"

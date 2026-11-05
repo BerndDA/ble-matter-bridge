@@ -53,6 +53,15 @@ namespace Nrf
 			chip::app::Clusters::BridgedDeviceBasicInformation::Attributes::UniqueID::Id, CHAR_STRING, 32, \
 			0), /* UniqueID */                                                                             \
 		DECLARE_DYNAMIC_ATTRIBUTE(                                                                             \
+			chip::app::Clusters::BridgedDeviceBasicInformation::Attributes::VendorName::Id, CHAR_STRING,   \
+			32, 0), /* VendorName */                                                                       \
+		DECLARE_DYNAMIC_ATTRIBUTE(                                                                             \
+			chip::app::Clusters::BridgedDeviceBasicInformation::Attributes::ProductName::Id, CHAR_STRING,  \
+			32, 0), /* ProductName */                                                                      \
+		DECLARE_DYNAMIC_ATTRIBUTE(                                                                             \
+			chip::app::Clusters::BridgedDeviceBasicInformation::Attributes::SerialNumber::Id, CHAR_STRING, \
+			32, 0), /* SerialNumber */                                                                     \
+		DECLARE_DYNAMIC_ATTRIBUTE(                                                                             \
 			chip::app::Clusters::BridgedDeviceBasicInformation::Attributes::FeatureMap::Id, BITMAP32, 4,   \
 			0), /* feature map */                                                                          \
 		DECLARE_DYNAMIC_ATTRIBUTE_LIST_END();
@@ -172,6 +181,10 @@ public:
 	chip::EndpointId GetEndpointId() const { return mEndpointId; }
 
 	virtual uint16_t GetDeviceType() const = 0;
+	/* Shown by controllers as manufacturer and model (Bridged Device Basic Information). The serial number is
+	 * the unique ID, which this gateway sets to the Bluetooth address. */
+	virtual const char *GetVendorName() const { return ""; }
+	virtual const char *GetProductName() const { return ""; }
 	virtual CHIP_ERROR HandleRead(chip::ClusterId clusterId, chip::AttributeId attributeId, uint8_t *buffer,
 				      uint16_t maxReadLength) = 0;
 	virtual CHIP_ERROR HandleWrite(chip::ClusterId clusterId, chip::AttributeId attributeId, uint8_t *buffer,

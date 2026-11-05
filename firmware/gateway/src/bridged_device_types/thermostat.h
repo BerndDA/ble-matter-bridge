@@ -22,6 +22,8 @@ public:
 	ThermostatDevice(const char *uniqueID, const char *nodeLabel);
 
 	uint16_t GetDeviceType() const override { return Nrf::MatterBridgedDevice::DeviceType::Thermostat; }
+	const char *GetVendorName() const override { return "eQ-3"; }
+	const char *GetProductName() const override { return "CC-RT-BLE"; }
 	CHIP_ERROR HandleRead(chip::ClusterId clusterId, chip::AttributeId attributeId, uint8_t *buffer,
 			      uint16_t maxReadLength) override;
 	CHIP_ERROR HandleWrite(chip::ClusterId clusterId, chip::AttributeId attributeId, uint8_t *buffer,
