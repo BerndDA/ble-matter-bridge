@@ -86,3 +86,7 @@ Two facts decide how much custom work this is.
 
 - [ ] Exact sensor and thermostat models (these set the advertisement format and the GATT work)
 - [x] Whether the sensors can run open firmware such as BTHome (yes: pvvx firmware with BTHome v2)
+
+## Future ideas
+
+- **Thread network map from the gateway.** Apple Home (HomePod as border router) shows nothing about the mesh, and ready-made topology views need an OpenThread Border Router or Home Assistant. The gateway is a full Thread router, so it can query the mesh itself: add the OpenThread shell and mesh diagnostics (`ot meshdiag topology`) to the diag build only, then a script like `scripts/diag-capture.py` reads it over the serial port and draws routers, children and link quality in both directions (Graphviz or a small HTML page). Would help with the far sensors. Open: whether the HomePods answer the diagnostic queries (they run OpenThread, so likely). For a quick look without firmware changes, the Eve app shows Thread devices and their roles.
