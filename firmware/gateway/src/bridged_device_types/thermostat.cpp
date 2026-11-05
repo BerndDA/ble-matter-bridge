@@ -123,8 +123,17 @@ CHIP_ERROR ThermostatDevice::HandleWrite(ClusterId clusterId, AttributeId attrib
 	    attributeId == Clusters::BridgedDeviceBasicInformation::Attributes::NodeLabel::Id) {
 		return HandleWriteDeviceBasicInformation(clusterId, attributeId, buffer, size);
 	}
-	/* Setpoint and mode writes need a connection to the thermostat; not implemented yet. */
-	return CHIP_ERROR_NOT_IMPLEMENTED;
+	if (clusterId != Clusters::Thermostat::Id) {
+		return CHIP_ERROR_INVALID_ARGUMENT;
+	}
+	switch (attributeId) {
+	case TA::OccupiedHeatingSetpoint::Id:
+	case TA::SystemMode::Id:
+		/* Stored now; the provider then sends it to the thermostat (BridgeManager::HandleWrite). */
+		return HandleAttributeChange(clusterId, attributeId, buffer, size);
+	default:
+		return CHIP_ERROR_INVALID_ARGUMENT;
+	}
 }
 
 CHIP_ERROR ThermostatDevice::HandleAttributeChange(ClusterId clusterId, AttributeId attributeId, void *data,

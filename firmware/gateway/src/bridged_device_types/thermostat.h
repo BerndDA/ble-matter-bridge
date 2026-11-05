@@ -2,7 +2,8 @@
  * Bridged Matter Thermostat (heating only), for eQ-3 radiator thermostats.
  *
  * Values come from the thermostat's BTHome broadcasts through the data provider.
- * Writes from controllers (setpoint, mode) are not forwarded yet and are refused.
+ * Setpoint and SystemMode writes are stored here and forwarded by the provider
+ * as eQ-3 commands over GATT.
  */
 
 #pragma once

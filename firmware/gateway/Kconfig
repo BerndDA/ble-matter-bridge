@@ -173,6 +173,26 @@ module = GATEWAY_SENSOR_SCANNER
 module-str = Gateway sensor scanner
 source "subsys/logging/Kconfig.template.log_config"
 
+config GATEWAY_EQ3_ATTEMPTS
+	int "Attempts per eQ-3 thermostat command"
+	default 3
+
+config GATEWAY_EQ3_ATTEMPT_TIMEOUT_S
+	int "Time limit for one eQ-3 command attempt, connection included (s)"
+	default 20
+
+config GATEWAY_EQ3_CONNECT_TIMEOUT_MS
+	int "Time to find the thermostat's advertisement when connecting (ms)"
+	default 10000
+	help
+	  The thermostat advertises about once a second, but with Thread
+	  sharing the radio many advertisements are missed: in a first test,
+	  two 5 s windows passed without one.
+
+module = GATEWAY_EQ3
+module-str = Gateway eQ-3 thermostat client
+source "subsys/logging/Kconfig.template.log_config"
+
 endmenu
 
 # Thread networking

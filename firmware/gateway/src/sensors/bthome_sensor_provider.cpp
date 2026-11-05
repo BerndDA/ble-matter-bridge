@@ -4,6 +4,7 @@
 
 #include "bthome_sensor_provider.h"
 #include "bthome_sensor_manager.h"
+#include "eq3_client.h"
 #include "thermostat.h"
 
 #include <app-common/zap-generated/ids/Attributes.h>
@@ -11,6 +12,8 @@
 #include <app-common/zap-generated/cluster-enums.h>
 
 #include <zephyr/sys/util.h>
+
+#include <string.h>
 
 using namespace chip::app;
 
@@ -46,14 +49,77 @@ void BTHomeSensorProvider::NotifyUpdateState(chip::ClusterId clusterId, chip::At
 	}
 }
 
-CHIP_ERROR BTHomeSensorProvider::UpdateState(chip::ClusterId clusterId, chip::AttributeId attributeId, uint8_t *)
+CHIP_ERROR BTHomeSensorProvider::UpdateState(chip::ClusterId clusterId, chip::AttributeId attributeId, uint8_t *buffer)
 {
+	namespace TA = Clusters::Thermostat::Attributes;
+
 	/* The node label is only kept locally; the sensor itself cannot be written to. */
 	if (clusterId == Clusters::BridgedDeviceBasicInformation::Id &&
 	    attributeId == Clusters::BridgedDeviceBasicInformation::Attributes::NodeLabel::Id) {
 		return CHIP_NO_ERROR;
 	}
+	if (clusterId != Clusters::Thermostat::Id || !buffer) {
+		return CHIP_ERROR_UNSUPPORTED_CHIP_FEATURE;
+	}
+
+	if (attributeId == TA::OccupiedHeatingSetpoint::Id) {
+		int16_t centi;
+		memcpy(&centi, buffer, sizeof(centi));
+		/* eQ-3 steps are 0.5 degC. */
+		return SendTarget(uint8_t((CLAMP(centi, kThermostatMinSetpoint, kThermostatMaxSetpoint) + 25) / 50));
+	}
+	if (attributeId == TA::SystemMode::Id) {
+		const auto mode = static_cast<Clusters::Thermostat::SystemModeEnum>(buffer[0]);
+		return SendTarget(mode == Clusters::Thermostat::SystemModeEnum::kOff ? Eq3Client::kMinTargetHalfDegrees
+										: mLastOnTarget);
+	}
 	return CHIP_ERROR_UNSUPPORTED_CHIP_FEATURE;
+}
+
+CHIP_ERROR BTHomeSensorProvider::SendTarget(uint8_t halfDegrees)
+{
+	const int err = Eq3Client::SetTarget(mAddr, halfDegrees);
+	if (err) {
+		return CHIP_ERROR_BUSY;
+	}
+	mCommandPending = true;
+	return CHIP_NO_ERROR;
+}
+
+void BTHomeSensorProvider::OnThermostatCommandDone(const Eq3Status *status)
+{
+	namespace TA = Clusters::Thermostat::Attributes;
+
+	mCommandPending = false;
+	if (!status) {
+		/* Report the thermostat's real values again with the next broadcast, replacing the written ones. */
+		mSetpoint = kNotReported;
+		mSystemMode = kNotReported;
+		return;
+	}
+	/* The written value may have been rounded or clamped: report what the thermostat took. */
+	mSetpoint = kNotReported;
+	mSystemMode = kNotReported;
+	ApplyTarget(status->mTargetHalfDegrees * 50);
+	NotifyIfChanged(Clusters::Thermostat::Id, TA::PIHeatingDemand::Id, mHeatingDemand, status->mValvePct,
+			sizeof(uint8_t));
+}
+
+void BTHomeSensorProvider::ApplyTarget(int32_t target)
+{
+	namespace TA = Clusters::Thermostat::Attributes;
+	using Clusters::Thermostat::SystemModeEnum;
+
+	/* eQ-3 "off" is a target of 4.5 degC, "on" 30.0 degC; Matter shows off as SystemMode Off. */
+	const bool off = target < kThermostatOffBelow;
+	const int32_t mode = chip::to_underlying(off ? SystemModeEnum::kOff : SystemModeEnum::kHeat);
+
+	NotifyIfChanged(Clusters::Thermostat::Id, TA::SystemMode::Id, mSystemMode, mode, sizeof(uint8_t));
+	if (!off) {
+		mLastOnTarget = uint8_t(target / 50);
+		NotifyIfChanged(Clusters::Thermostat::Id, TA::OccupiedHeatingSetpoint::Id, mSetpoint,
+				CLAMP(target, kThermostatMinSetpoint, kThermostatMaxSetpoint), sizeof(int16_t));
+	}
 }
 
 void BTHomeSensorProvider::OnReading(const bthome_reading &reading, int64_t nowMs)
@@ -133,7 +199,6 @@ void BTHomeSensorProvider::NotifyIfChanged(chip::ClusterId clusterId, chip::Attr
 void BTHomeSensorProvider::UpdateThermostat(const bthome_reading &reading)
 {
 	namespace TA = Clusters::Thermostat::Attributes;
-	using Clusters::Thermostat::SystemModeEnum;
 
 	/* The eQ-3 sends two alternating sets (PROTOCOL.md of eq3-custom-fw); each update uses only what it carries. */
 	if (reading.fields & BTHOME_HAS_TEMPERATURE) {
@@ -142,17 +207,8 @@ void BTHomeSensorProvider::UpdateThermostat(const bthome_reading &reading)
 		NotifyIfChanged(Clusters::Thermostat::Id, TA::LocalTemperature::Id, mLocalTemperature,
 				reading.temperature_centi_c, sizeof(int16_t));
 	}
-	if (reading.fields & BTHOME_HAS_TEMPERATURE2) {
-		/* eQ-3 "off" is a target of 4.5 degC, "on" 30.0 degC; Matter shows off as SystemMode Off. */
-		const int16_t target = reading.temperature2_centi_c;
-		const bool off = target < kThermostatOffBelow;
-		const int32_t mode = chip::to_underlying(off ? SystemModeEnum::kOff : SystemModeEnum::kHeat);
-
-		NotifyIfChanged(Clusters::Thermostat::Id, TA::SystemMode::Id, mSystemMode, mode, sizeof(uint8_t));
-		if (!off) {
-			NotifyIfChanged(Clusters::Thermostat::Id, TA::OccupiedHeatingSetpoint::Id, mSetpoint,
-					CLAMP(target, kThermostatMinSetpoint, kThermostatMaxSetpoint), sizeof(int16_t));
-		}
+	if ((reading.fields & BTHOME_HAS_TEMPERATURE2) && !mCommandPending) {
+		ApplyTarget(reading.temperature2_centi_c);
 	}
 	if (reading.fields & BTHOME_HAS_VALVE) {
 		NotifyIfChanged(Clusters::Thermostat::Id, TA::PIHeatingDemand::Id, mHeatingDemand, reading.valve_pct,

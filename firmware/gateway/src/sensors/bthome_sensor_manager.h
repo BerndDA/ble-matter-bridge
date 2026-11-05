@@ -90,6 +90,8 @@ private:
 	};
 
 	static void OnScannerReading(const bt_addr_le_t *addr, int8_t rssi, const bthome_reading *reading);
+	static void OnEq3CommandDone(const bt_addr_le_t &addr, bool ok, const Eq3Status *status);
+	static void ProcessEq3Results(intptr_t);
 	static void ProcessEvents(intptr_t);
 	static void ReachabilityTimerHandler(k_timer *timer);
 	static void CheckReachability(intptr_t);

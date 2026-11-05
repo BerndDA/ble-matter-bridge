@@ -39,6 +39,15 @@ struct QueuedReading {
 };
 
 K_MSGQ_DEFINE(sReadingQueue, sizeof(QueuedReading), CONFIG_GATEWAY_BTHOME_QUEUE_SIZE, 4);
+
+/* Finished eQ-3 commands travel from the system work queue to the Matter thread through this queue. */
+struct QueuedEq3Result {
+	bt_addr_le_t mAddr;
+	bool mOk;
+	Eq3Status mStatus;
+};
+
+K_MSGQ_DEFINE(sEq3ResultQueue, sizeof(QueuedEq3Result), 4, 4);
 atomic_t sProcessScheduled;
 k_timer sReachabilityTimer;
 
@@ -132,6 +141,7 @@ void BTHomeSensorManager::Start()
 		}
 	}
 
+	Eq3Client::Init(OnEq3CommandDone);
 	sensor_scanner_set_listener(OnScannerReading);
 	k_timer_init(&sReachabilityTimer, ReachabilityTimerHandler, nullptr);
 	k_timer_start(&sReachabilityTimer, K_MSEC(kReachabilityCheckMs), K_MSEC(kReachabilityCheckMs));
@@ -151,6 +161,35 @@ void BTHomeSensorManager::OnScannerReading(const bt_addr_le_t *addr, int8_t, con
 	if (atomic_cas(&sProcessScheduled, 0, 1)) {
 		if (DeviceLayer::PlatformMgr().ScheduleWork(ProcessEvents) != CHIP_NO_ERROR) {
 			atomic_set(&sProcessScheduled, 0);
+		}
+	}
+}
+
+void BTHomeSensorManager::OnEq3CommandDone(const bt_addr_le_t &addr, bool ok, const Eq3Status *status)
+{
+	/* System work queue: hand over to the Matter thread. */
+	QueuedEq3Result item = {};
+
+	bt_addr_le_copy(&item.mAddr, &addr);
+	item.mOk = ok;
+	if (status) {
+		item.mStatus = *status;
+	}
+	if (k_msgq_put(&sEq3ResultQueue, &item, K_NO_WAIT) != 0) {
+		LOG_WRN("eQ-3 result queue full, dropping result");
+		return;
+	}
+	DeviceLayer::PlatformMgr().ScheduleWork(ProcessEq3Results);
+}
+
+void BTHomeSensorManager::ProcessEq3Results(intptr_t)
+{
+	QueuedEq3Result item;
+
+	while (k_msgq_get(&sEq3ResultQueue, &item, K_NO_WAIT) == 0) {
+		Sensor *sensor = Instance().Find(item.mAddr);
+		if (sensor) {
+			sensor->mProvider->OnThermostatCommandDone(item.mOk ? &item.mStatus : nullptr);
 		}
 	}
 }

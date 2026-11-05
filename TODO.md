@@ -12,14 +12,16 @@ What's left to do and to decide. Tick items off here; the plan behind the steps 
 
 ## Next
 
-- [ ] Step 4: setting the temperature from Apple Home (writes over GATT).
+- [ ] Step 4: measure again with thermostat commands (step 5), then decide on the eQ-3 modes.
 
 ## Step 4: one thermostat
 
 - [x] eQ-3 CC-RT-BLE with [eq3-custom-fw](https://github.com/dbuezas/eq3-custom-fw): values come from BTHome broadcasts, control over GATT ([spike/eq3-flash](spike/eq3-flash/README.md), protocol in the firmware's PROTOCOL.md).
 - [x] Thermostat endpoint (cluster 0x0201), read-only: room temperature, target, valve as heating demand, Off below 4.75 °C, battery from voltage and low flag.
-- [ ] Check it in Apple Home.
-- [ ] Setpoint and mode writes: connect on demand, no PIN (off by default on eq3-custom-fw; decide whether to turn it on and bond).
+- [x] Checked in Apple Home.
+- [x] Setpoint and Off/Heat from Apple Home: one short GATT connection per command, 7–13 s until the thermostat has it. Needs the thermostat's PIN off ("Ask for a PIN" in the web app, or `PIn CodE` in its Bluetooth menu).
+- [ ] Decide whether the PIN should be on, with the gateway pairing once using the code from the display.
+- [ ] Connect sooner: many connect attempts miss the advertisement or drop at once (HCI 0x3E); try connecting right after the scanner hears the thermostat.
 - [ ] Map eQ-3 modes (auto, manual, holiday, boost) and decide what Apple Home shows for them.
 - [ ] Command queue ahead of routine polls, with a timeout per connection attempt.
 - [ ] Measure again (step 5) with the thermostat connected.

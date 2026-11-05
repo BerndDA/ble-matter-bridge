@@ -46,6 +46,7 @@ target_include_directories(app PRIVATE
   src/ble
   src/ble/data_providers
   src/sensors
+  src/thermostat
 )
 
 target_sources(app PRIVATE
@@ -62,6 +63,7 @@ target_sources(app PRIVATE
   src/bridged_device_types/temperature_sensor.cpp
   src/bridged_device_types/humidity_sensor.cpp
   src/bridged_device_types/thermostat.cpp
+  src/thermostat/eq3_client.cpp
   src/ble/data_providers/ble_environmental_data_provider.cpp
   src/sensors/bthome.c
   src/sensors/sensor_scanner.c

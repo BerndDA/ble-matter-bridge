@@ -6,6 +6,7 @@
  *   gateway unignore <addr> [type]     allow an ignored sensor to be auto-added again
  *   gateway ignored                    list ignored addresses
  *   gateway pause <seconds>            pause the background scan (0 resumes), for measurements
+ *   gateway target <addr> <celsius>    set an eQ-3 thermostat's target (4.5 = off, 30 = on), for tests
  *
  * <addr> is written as printed by `gateway seen`, e.g. A4:C1:38:0C:54:AA.
  * [type] is "public" (default) or "random".
@@ -20,6 +21,7 @@
 #include <zephyr/shell/shell.h>
 
 #include "bthome_sensor_manager.h"
+#include "eq3_client.h"
 #include "sensor_scanner.h"
 
 using Gateway::BTHomeSensorManager;
@@ -248,6 +250,30 @@ int CmdPause(const struct shell *sh, size_t, char **argv)
 	return 0;
 }
 
+int CmdTarget(const struct shell *sh, size_t, char **argv)
+{
+	bt_addr_le_t addr;
+
+	if (bt_addr_le_from_str(argv[1], "public", &addr) != 0) {
+		shell_error(sh, "Invalid address \"%s\"", argv[1]);
+		return -EINVAL;
+	}
+	/* Half degrees, rounded: "21.5" -> 43. */
+	const double celsius = strtod(argv[2], nullptr);
+	const long half = long(celsius * 2 + 0.5);
+
+	if (half < Gateway::Eq3Client::kMinTargetHalfDegrees || half > Gateway::Eq3Client::kMaxTargetHalfDegrees) {
+		shell_error(sh, "Target must be 4.5 .. 30");
+		return -EINVAL;
+	}
+	if (Gateway::Eq3Client::SetTarget(addr, uint8_t(half)) != 0) {
+		shell_error(sh, "Command queue full");
+		return -ENOMEM;
+	}
+	shell_print(sh, "Queued; the result is logged (eq3_client)");
+	return 0;
+}
+
 } /* namespace */
 
 SHELL_STATIC_SUBCMD_SET_CREATE(
@@ -266,6 +292,10 @@ SHELL_STATIC_SUBCMD_SET_CREATE(
 		      "Pause the background scan (for measurements); 0 resumes.\n"
 		      "Usage: pause <seconds>",
 		      CmdPause, 2, 0),
+	SHELL_CMD_ARG(target, NULL,
+		      "Set an eQ-3 thermostat's target temperature (4.5 = off, 30 = on).\n"
+		      "Usage: target <addr> <celsius>",
+		      CmdTarget, 3, 0),
 	SHELL_SUBCMD_SET_END);
 
 SHELL_CMD_REGISTER(gateway, &sub_gateway, "BLE gateway commands", NULL);

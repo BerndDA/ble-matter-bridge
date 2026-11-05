@@ -10,6 +10,7 @@
 
 #include "bridged_device_data_provider.h"
 #include "bthome.h"
+#include "eq3_client.h"
 
 #include <zephyr/bluetooth/addr.h>
 
@@ -29,6 +30,9 @@ public:
 	/* Applies a new measurement and reports changed values to Matter. */
 	void OnReading(const bthome_reading &reading, int64_t nowMs);
 
+	/* Result of an eQ-3 command sent by UpdateState; @p status is nullptr when it failed. */
+	void OnThermostatCommandDone(const Eq3Status *status);
+
 	/* Marks the sensor unreachable if nothing was received for @p timeoutMs. */
 	void CheckReachable(int64_t nowMs, int64_t timeoutMs);
 
@@ -47,6 +51,8 @@ public:
 private:
 	void UpdateBattery(uint8_t percent, bool low = false);
 	void UpdateThermostat(const bthome_reading &reading);
+	void ApplyTarget(int32_t halfDegrees);
+	CHIP_ERROR SendTarget(uint8_t halfDegrees);
 	void NotifyIfChanged(chip::ClusterId clusterId, chip::AttributeId attributeId, int32_t &last, int32_t value,
 			     size_t size);
 
@@ -69,6 +75,10 @@ private:
 	int32_t mSystemMode = kNotReported;
 	int32_t mHeatingDemand = kNotReported;
 	bool mBatteryLow = false;
+	/* Last target that was not "off", in half degrees: restored when Matter switches the mode back to Heat. */
+	uint8_t mLastOnTarget = 40;
+	/* While a command is in flight, broadcast targets are ignored: they may still show the old value. */
+	bool mCommandPending = false;
 };
 
 } /* namespace Gateway */
