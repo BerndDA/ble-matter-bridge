@@ -1,5 +1,5 @@
 /*
- * BTHome v2 advertisement parser (https://bthome.io/format/).
+ * BTHome v2 advertisement parser (https://bthome.io/format/) and advertised-name helpers.
  */
 
 #include "bthome.h"
@@ -204,4 +204,75 @@ int bthome_parse_adv(const uint8_t *adv, size_t len, struct bthome_reading *out)
 	}
 
 	return BTHOME_ERR_INVALID;
+}
+
+#define AD_TYPE_NAME_SHORTENED 0x08
+#define AD_TYPE_NAME_COMPLETE 0x09
+#define EQ3_NAME_PREFIX "eQ3-"
+
+/* Copies at most out_size - 1 bytes and terminates; never splits a UTF-8 character. */
+static size_t copy_utf8(char *out, size_t out_size, const char *src, size_t src_len)
+{
+	size_t n = src_len < out_size - 1 ? src_len : out_size - 1;
+
+	/* Cut before a continuation byte (10xxxxxx) so a multi-byte character stays whole or goes. */
+	if (n < src_len) {
+		while (n > 0 && ((unsigned char)src[n] & 0xC0) == 0x80) {
+			n--;
+		}
+	}
+	memcpy(out, src, n);
+	out[n] = '\0';
+	return n;
+}
+
+int adv_find_name(const uint8_t *adv, size_t len, char *out, size_t out_size)
+{
+	const uint8_t *name = NULL;
+	size_t name_len = 0;
+	size_t pos = 0;
+
+	if (adv == NULL || out == NULL || out_size == 0) {
+		return -1;
+	}
+
+	while (pos < len) {
+		const uint8_t field_len = adv[pos];
+
+		if (field_len == 0) {
+			break;
+		}
+		if (pos + 1 + field_len > len) {
+			return -1;
+		}
+
+		const uint8_t type = adv[pos + 1];
+
+		if (type == AD_TYPE_NAME_COMPLETE || (type == AD_TYPE_NAME_SHORTENED && name == NULL)) {
+			name = &adv[pos + 2];
+			name_len = field_len - 1;
+		}
+		pos += 1 + field_len;
+	}
+
+	if (name == NULL || name_len == 0) {
+		return -1;
+	}
+	return (int)copy_utf8(out, out_size, (const char *)name, name_len);
+}
+
+bool eq3_label_from_name(const char *name, char *out, size_t out_size)
+{
+	const size_t prefix_len = sizeof(EQ3_NAME_PREFIX) - 1;
+
+	if (name == NULL || out == NULL || out_size == 0 || strncmp(name, EQ3_NAME_PREFIX, prefix_len) != 0) {
+		return false;
+	}
+
+	const char *rest = name + prefix_len;
+
+	if (rest[0] == '\0') {
+		return false;
+	}
+	return copy_utf8(out, out_size, rest, strlen(rest)) > 0;
 }

@@ -89,7 +89,8 @@ int CmdSeen(const struct shell *sh, size_t, char **)
 	const size_t n = sensor_scanner_get_seen(list, ARRAY_SIZE(list));
 	const int64_t now = k_uptime_get();
 
-	shell_print(sh, "Background scan: %s", sensor_scanner_is_scanning() ? "running" : "paused/idle");
+	shell_print(sh, "Background scan: %s",
+		    !sensor_scanner_is_scanning() ? "paused/idle" : sensor_scanner_is_active() ? "running (active)" : "running");
 	shell_print(sh, "%-30s %5s %6s %8s %7s %5s %6s %6s %7s %7s", "Address", "RSSI", "Age s", "Temp C", "Hum %",
 		    "Bat%", "mV", "Meas", "Pkts", "MaxGap");
 
@@ -118,6 +119,9 @@ int CmdSeen(const struct shell *sh, size_t, char **)
 		shell_print(sh, "%-30s %5d %6lld %8s %7s %5s %6s %6u %7u %6us", addr, s.rssi,
 			    (now - s.last_seen_ms) / 1000, temp, hum, bat, mv, s.measurements, s.packets,
 			    s.max_gap_ms / 1000);
+		if (s.name[0] != '\0') {
+			shell_print(sh, "%-30s name \"%s\"", "", s.name);
+		}
 		if (s.last.fields & BTHOME_THERMOSTAT_FIELDS) {
 			PrintThermostat(sh, s.last);
 		}

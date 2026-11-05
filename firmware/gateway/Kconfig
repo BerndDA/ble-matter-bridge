@@ -144,6 +144,17 @@ config GATEWAY_BTHOME_MAX_SENSORS
 	  endpoints, a thermostat one. See BRIDGE_MAX_BRIDGED_DEVICES_NUMBER and
 	  BRIDGE_MAX_DYNAMIC_ENDPOINTS_NUMBER.
 
+config GATEWAY_EQ3_NAME_WAIT_S
+	int "Wait this long for a new eQ-3 thermostat's name before adding it (s)"
+	default 20
+	range 0 120
+	help
+	  A renamed eQ-3 thermostat airs "eQ3-<name>" in its scan responses; it is
+	  added with the node label "<name>", which controllers take as the initial
+	  name. While waiting the background scan runs actively. If no name arrives
+	  in time, or the unit has the default name, the label is "Thermostat 3F02".
+	  0 adds thermostats at once with the default label.
+
 config GATEWAY_BTHOME_IGNORE_MAX
 	int "Maximum number of ignored BTHome sensor addresses"
 	default 8

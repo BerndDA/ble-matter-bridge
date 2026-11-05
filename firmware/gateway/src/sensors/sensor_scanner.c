@@ -1,5 +1,5 @@
 /*
- * Background passive scan for advertisement-only sensors (BTHome v2).
+ * Background scan for advertisement-only sensors (BTHome v2).
  */
 
 #include "sensor_scanner.h"
@@ -19,6 +19,8 @@ LOG_MODULE_REGISTER(sensor_scanner, CONFIG_GATEWAY_SENSOR_SCANNER_LOG_LEVEL);
 /* Protects scan state (scanning, pause_until). Taken in thread context only. */
 static K_MUTEX_DEFINE(scan_mutex);
 static bool scanning;
+static bool scanning_active; /* type of the running scan */
+static bool want_active; /* requested by sensor_scanner_set_active */
 static int64_t pause_until;
 static struct k_work_delayable scan_work;
 
@@ -96,9 +98,43 @@ static struct sensor_seen *seen_entry(const bt_addr_le_t *addr)
 	return e;
 }
 
+/* Returns the table entry for @p addr, or NULL. Call with seen_lock held. */
+static struct sensor_seen *seen_find(const bt_addr_le_t *addr)
+{
+	for (size_t i = 0; i < seen_count; i++) {
+		if (bt_addr_le_eq(&seen[i].addr, addr)) {
+			return &seen[i];
+		}
+	}
+	return NULL;
+}
+
+/* Keeps the name of devices already in the table (BTHome senders); others are not tracked. */
+static void store_name(const bt_addr_le_t *addr, const struct net_buf_simple *buf)
+{
+	char name[SENSOR_NAME_SIZE];
+
+	if (adv_find_name(buf->data, buf->len, name, sizeof(name)) <= 0) {
+		return;
+	}
+
+	k_spinlock_key_t key = k_spin_lock(&seen_lock);
+	struct sensor_seen *e = seen_find(addr);
+
+	if (e != NULL && strcmp(e->name, name) != 0) {
+		memcpy(e->name, name, sizeof(name));
+		k_spin_unlock(&seen_lock, key);
+		LOG_DBG("Name of %02X:%02X: %s", addr->a.val[1], addr->a.val[0], name);
+		return;
+	}
+	k_spin_unlock(&seen_lock, key);
+}
+
 static void on_scan_recv(const struct bt_le_scan_recv_info *info, struct net_buf_simple *buf)
 {
 	struct bthome_reading r;
+
+	store_name(info->addr, buf);
 
 	if (bthome_parse_adv(buf->data, buf->len, &r) != 0) {
 		return;
@@ -149,9 +185,20 @@ static void scan_work_handler(struct k_work *work)
 		return;
 	}
 
+	if (scanning && scanning_active != want_active) {
+		/* Restart with the other scan type. */
+		const int err = bt_le_scan_stop();
+
+		if (err != 0 && err != -EALREADY) {
+			LOG_WRN("Background scan failed to stop (err %d)", err);
+		}
+		scanning = false;
+	}
+
 	if (!scanning) {
+		const bool active = want_active;
 		const struct bt_le_scan_param param = {
-			.type = BT_LE_SCAN_TYPE_PASSIVE,
+			.type = active ? BT_LE_SCAN_TYPE_ACTIVE : BT_LE_SCAN_TYPE_PASSIVE,
 			/* No duplicate filter: every advertisement carries a new reading. */
 			.options = BT_LE_SCAN_OPT_NONE,
 			.interval = CONFIG_GATEWAY_SENSOR_SCAN_INTERVAL,
@@ -161,7 +208,8 @@ static void scan_work_handler(struct k_work *work)
 
 		if (err == 0) {
 			scanning = true;
-			LOG_INF("Background scan started");
+			scanning_active = active;
+			LOG_INF("Background scan started (%s)", active ? "active" : "passive");
 		} else if (err == -EALREADY) {
 			/* Another scan (e.g. the bridge's GATT discovery) is running; its reports reach us too. */
 			LOG_DBG("Another scan is active, retrying later");
@@ -229,6 +277,33 @@ void sensor_scanner_resume(void)
 	k_mutex_unlock(&scan_mutex);
 }
 
+void sensor_scanner_set_active(bool active)
+{
+	k_mutex_lock(&scan_mutex, K_FOREVER);
+	if (want_active != active) {
+		want_active = active;
+		if (k_uptime_get() >= pause_until) {
+			k_work_reschedule(&scan_work, K_NO_WAIT);
+		}
+	}
+	k_mutex_unlock(&scan_mutex);
+}
+
+bool sensor_scanner_get_name(const bt_addr_le_t *addr, char *out, size_t out_size)
+{
+	bool found = false;
+	k_spinlock_key_t key = k_spin_lock(&seen_lock);
+	const struct sensor_seen *e = seen_find(addr);
+
+	if (e != NULL && e->name[0] != '\0' && out_size > 0) {
+		strncpy(out, e->name, out_size - 1);
+		out[out_size - 1] = '\0';
+		found = true;
+	}
+	k_spin_unlock(&seen_lock, key);
+	return found;
+}
+
 size_t sensor_scanner_get_seen(struct sensor_seen *out, size_t max)
 {
 	k_spinlock_key_t key = k_spin_lock(&seen_lock);
@@ -242,4 +317,9 @@ size_t sensor_scanner_get_seen(struct sensor_seen *out, size_t max)
 bool sensor_scanner_is_scanning(void)
 {
 	return scanning;
+}
+
+bool sensor_scanner_is_active(void)
+{
+	return scanning && scanning_active;
 }

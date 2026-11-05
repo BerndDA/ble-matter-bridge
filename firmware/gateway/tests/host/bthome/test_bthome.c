@@ -280,6 +280,69 @@ static void test_eq3_set_c(void)
 	CHECK(!r.truncated);
 }
 
+/* Scan response of a renamed eQ-3 thermostat: flags + complete name "eQ3-Dusche". */
+static void test_name_complete(void)
+{
+	const uint8_t rsp[] = { 0x02, 0x01, 0x06, 0x0B, 0x09, 'e', 'Q', '3', '-', 'D', 'u', 's', 'c', 'h', 'e' };
+	char name[30];
+
+	CHECK_EQ(adv_find_name(rsp, sizeof(rsp), name, sizeof(name)), 10);
+	CHECK(strcmp(name, "eQ3-Dusche") == 0);
+}
+
+static void test_name_complete_preferred(void)
+{
+	const uint8_t adv[] = { 0x04, 0x08, 'e', 'Q', '3', 0x05, 0x09, 'e', 'Q', '3', 'x' };
+	char name[30];
+
+	CHECK_EQ(adv_find_name(adv, sizeof(adv), name, sizeof(name)), 4);
+	CHECK(strcmp(name, "eQ3x") == 0);
+}
+
+static void test_name_missing_or_malformed(void)
+{
+	const uint8_t none[] = { 0x02, 0x01, 0x06 };
+	const uint8_t bad[] = { 0x08, 0x09, 'a', 'b' };
+	const uint8_t empty[] = { 0x01, 0x09 };
+	char name[30] = "x";
+
+	CHECK_EQ(adv_find_name(none, sizeof(none), name, sizeof(name)), -1);
+	CHECK_EQ(adv_find_name(bad, sizeof(bad), name, sizeof(name)), -1);
+	CHECK_EQ(adv_find_name(empty, sizeof(empty), name, sizeof(name)), -1);
+}
+
+static void test_name_truncated_on_utf8_boundary(void)
+{
+	/* "Bä" = 42 C3 A4: with room for 2 bytes the "ä" must go as a whole. */
+	const uint8_t adv[] = { 0x04, 0x09, 0x42, 0xC3, 0xA4 };
+	char name[3];
+
+	CHECK_EQ(adv_find_name(adv, sizeof(adv), name, sizeof(name)), 1);
+	CHECK(strcmp(name, "B") == 0);
+}
+
+static void test_eq3_label(void)
+{
+	char label[32];
+
+	CHECK(eq3_label_from_name("eQ3-Dusche", label, sizeof(label)));
+	CHECK(strcmp(label, "Dusche") == 0);
+	CHECK(eq3_label_from_name("eQ3-Bad oben", label, sizeof(label)));
+	CHECK(strcmp(label, "Bad oben") == 0);
+	CHECK(!eq3_label_from_name("CC-RT-BLE", label, sizeof(label)));
+	CHECK(!eq3_label_from_name("eQ3-", label, sizeof(label)));
+	CHECK(!eq3_label_from_name("EQ3-Dusche", label, sizeof(label)));
+	CHECK(!eq3_label_from_name("ATC_54AA", label, sizeof(label)));
+}
+
+static void test_eq3_label_truncated(void)
+{
+	char label[5];
+
+	CHECK(eq3_label_from_name("eQ3-K\xC3\xBC" "che", label, sizeof(label)));
+	CHECK(strcmp(label, "K\xC3\xBC" "c") == 0);
+}
+
 int main(void)
 {
 	RUN(test_spec_example);
@@ -301,6 +364,12 @@ int main(void)
 	RUN(test_eq3_set_a);
 	RUN(test_eq3_set_b);
 	RUN(test_eq3_set_c);
+	RUN(test_name_complete);
+	RUN(test_name_complete_preferred);
+	RUN(test_name_missing_or_malformed);
+	RUN(test_name_truncated_on_utf8_boundary);
+	RUN(test_eq3_label);
+	RUN(test_eq3_label_truncated);
 
 	printf("\n%d checks, %d failures\n", checks, failures);
 	return failures ? 1 : 0;

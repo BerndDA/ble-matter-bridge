@@ -79,6 +79,20 @@ int bthome_parse_service_data(const uint8_t *data, size_t len, struct bthome_rea
  */
 int bthome_parse_adv(const uint8_t *adv, size_t len, struct bthome_reading *out);
 
+/*
+ * Copies the device name from raw advertising or scan response data into @p out (NUL-terminated,
+ * truncated to fit). Prefers the complete name over the shortened one.
+ * Returns the copied length, or -1 if the data holds no name or is malformed.
+ */
+int adv_find_name(const uint8_t *adv, size_t len, char *out, size_t out_size);
+
+/*
+ * Turns the advertised name of a renamed eQ-3 thermostat ("eQ3-Dusche", see eq3-custom-fw
+ * PROTOCOL.md section 2) into a Matter node label ("Dusche"), truncated to fit @p out on a UTF-8
+ * character boundary. Returns false for the default name "CC-RT-BLE" or any other name.
+ */
+bool eq3_label_from_name(const char *name, char *out, size_t out_size);
+
 #ifdef __cplusplus
 }
 #endif

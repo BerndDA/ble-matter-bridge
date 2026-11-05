@@ -31,6 +31,8 @@ namespace
 constexpr char kIgnoreListKey[] = "gw/bthome_ign";
 constexpr int64_t kUnreachableTimeoutMs = int64_t(CONFIG_GATEWAY_BTHOME_UNREACHABLE_TIMEOUT_S) * 1000;
 constexpr uint32_t kReachabilityCheckMs = 30 * 1000;
+constexpr int64_t kNameWaitMs = int64_t(CONFIG_GATEWAY_EQ3_NAME_WAIT_S) * 1000;
+constexpr uint32_t kPendingCheckMs = 1000;
 
 /* Readings travel from the Bluetooth RX thread to the Matter thread through this queue. */
 struct QueuedReading {
@@ -50,6 +52,7 @@ struct QueuedEq3Result {
 K_MSGQ_DEFINE(sEq3ResultQueue, sizeof(QueuedEq3Result), 4, 4);
 atomic_t sProcessScheduled;
 k_timer sReachabilityTimer;
+k_timer sPendingTimer;
 
 /* "A4C1380C54AA": most significant byte first, as printed on the sensor. */
 void FormatUniqueId(const bt_addr_le_t &addr, char *out, size_t len)
@@ -145,6 +148,7 @@ void BTHomeSensorManager::Start()
 	sensor_scanner_set_listener(OnScannerReading);
 	k_timer_init(&sReachabilityTimer, ReachabilityTimerHandler, nullptr);
 	k_timer_start(&sReachabilityTimer, K_MSEC(kReachabilityCheckMs), K_MSEC(kReachabilityCheckMs));
+	k_timer_init(&sPendingTimer, PendingTimerHandler, nullptr);
 }
 
 void BTHomeSensorManager::OnScannerReading(const bt_addr_le_t *addr, int8_t, const bthome_reading *reading)
@@ -235,7 +239,11 @@ void BTHomeSensorManager::HandleReading(const bt_addr_le_t &addr, const bthome_r
 		}
 		/* eQ-3 thermostats send the room temperature together with thermostat-only objects. */
 		const bool thermostat = (reading.fields & BTHOME_THERMOSTAT_FIELDS) != 0;
-		if (AddSensor(addr, thermostat, sensor) != CHIP_NO_ERROR) {
+		/* Its name decides the node label, so wait for it (unless all wait slots are taken). */
+		if (thermostat && kNameWaitMs > 0 && WaitForName(addr, reading)) {
+			return;
+		}
+		if (AddSensor(addr, thermostat, nullptr, sensor) != CHIP_NO_ERROR) {
 			return;
 		}
 	}
@@ -243,13 +251,99 @@ void BTHomeSensorManager::HandleReading(const bt_addr_le_t &addr, const bthome_r
 	sensor->mProvider->OnReading(reading, k_uptime_get());
 }
 
-CHIP_ERROR BTHomeSensorManager::AddSensor(const bt_addr_le_t &addr, bool thermostat, Sensor *&sensor)
+bool BTHomeSensorManager::WaitForName(const bt_addr_le_t &addr, const bthome_reading &reading)
+{
+	PendingThermostat *free = nullptr;
+
+	for (auto &pending : mPending) {
+		if (pending.mUsed && bt_addr_le_eq(&pending.mAddr, &addr)) {
+			pending.mReading = reading;
+			return true;
+		}
+		if (!pending.mUsed && !free) {
+			free = &pending;
+		}
+	}
+	if (!free) {
+		return false;
+	}
+
+	free->mUsed = true;
+	bt_addr_le_copy(&free->mAddr, &addr);
+	free->mSinceMs = k_uptime_get();
+	free->mReading = reading;
+
+	char addrStr[BT_ADDR_LE_STR_LEN];
+	bt_addr_le_to_str(&addr, addrStr, sizeof(addrStr));
+	LOG_INF("BTHome: new thermostat %s, waiting up to %d s for its name", addrStr,
+		CONFIG_GATEWAY_EQ3_NAME_WAIT_S);
+
+	sensor_scanner_set_active(true);
+	k_timer_start(&sPendingTimer, K_MSEC(kPendingCheckMs), K_MSEC(kPendingCheckMs));
+	return true;
+}
+
+void BTHomeSensorManager::PendingTimerHandler(k_timer *)
+{
+	DeviceLayer::PlatformMgr().ScheduleWork(CheckPending);
+}
+
+void BTHomeSensorManager::CheckPending(intptr_t)
+{
+	BTHomeSensorManager &self = Instance();
+	const int64_t now = k_uptime_get();
+	bool waiting = false;
+
+	for (auto &pending : self.mPending) {
+		if (!pending.mUsed) {
+			continue;
+		}
+
+		char name[SENSOR_NAME_SIZE];
+		char label[MatterBridgedDevice::kNodeLabelSize];
+		const bool haveName = sensor_scanner_get_name(&pending.mAddr, name, sizeof(name));
+		const bool renamed = haveName && eq3_label_from_name(name, label, sizeof(label));
+
+		/* Any name settles it: a unit that wasn't renamed airs the default "CC-RT-BLE". */
+		if (haveName || now - pending.mSinceMs >= kNameWaitMs) {
+			if (!renamed) {
+				LOG_INF("BTHome: thermostat %s, using the default label",
+					haveName ? "not renamed" : "name not heard");
+			}
+			self.AddPendingThermostat(pending, renamed ? label : nullptr);
+		} else {
+			waiting = true;
+		}
+	}
+
+	if (!waiting) {
+		k_timer_stop(&sPendingTimer);
+		sensor_scanner_set_active(false);
+	}
+}
+
+void BTHomeSensorManager::AddPendingThermostat(PendingThermostat &pending, const char *label)
+{
+	Sensor *sensor = nullptr;
+
+	pending.mUsed = false;
+	if (AddSensor(pending.mAddr, true, label, sensor) == CHIP_NO_ERROR) {
+		sensor->mProvider->OnReading(pending.mReading, k_uptime_get());
+	}
+}
+
+CHIP_ERROR BTHomeSensorManager::AddSensor(const bt_addr_le_t &addr, bool thermostat, const char *label,
+					  Sensor *&sensor)
 {
 	char uniqueId[MatterBridgedDevice::kUniqueIDSize];
-	char label[MatterBridgedDevice::kNodeLabelSize];
+	char defaultLabel[MatterBridgedDevice::kNodeLabelSize];
 	char addrStr[BT_ADDR_LE_STR_LEN];
 
 	bt_addr_le_to_str(&addr, addrStr, sizeof(addrStr));
+	if (!label) {
+		FormatNodeLabel(addr, thermostat, defaultLabel, sizeof(defaultLabel));
+		label = defaultLabel;
+	}
 
 	sensor = FindFree();
 	if (!sensor) {
@@ -261,7 +355,6 @@ CHIP_ERROR BTHomeSensorManager::AddSensor(const bt_addr_le_t &addr, bool thermos
 	}
 
 	FormatUniqueId(addr, uniqueId, sizeof(uniqueId));
-	FormatNodeLabel(addr, thermostat, label, sizeof(label));
 
 	auto &deviceFactory = BleBridgedDeviceFactory::GetBridgedDeviceFactory();
 	MatterBridgedDevice *devices[2] = {};

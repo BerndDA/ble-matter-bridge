@@ -5,6 +5,10 @@
  *   (CONFIG_GATEWAY_BTHOME_AUTO_ADD), as a Temperature Sensor and a Humidity
  *   Sensor endpoint sharing one BTHomeSensorProvider. eQ-3 thermostats with
  *   eq3-custom-fw are added as one Thermostat endpoint.
+ * - A new thermostat is added only once its advertised name is known, or after
+ *   CONFIG_GATEWAY_EQ3_NAME_WAIT_S: a renamed unit ("eQ3-Dusche") gets the
+ *   node label "Dusche", which controllers take as the initial name. The name
+ *   comes in scan responses, so the scanner scans actively while waiting.
  * - Added sensors are stored by the bridge storage and restored on boot with
  *   the same endpoint IDs, so names and rooms in the controller are kept.
  * - Removed sensors go on an ignore list so auto-add does not bring them back.
@@ -89,21 +93,36 @@ private:
 		uint16_t mThermostatEndpoint = 0;
 	};
 
+	/* A thermostat heard for the first time, waiting for its advertised name. */
+	struct PendingThermostat {
+		bool mUsed = false;
+		bt_addr_le_t mAddr;
+		int64_t mSinceMs;
+		bthome_reading mReading; /* latest, handed to the provider once added */
+	};
+	static constexpr size_t kMaxPending = 2;
+
 	static void OnScannerReading(const bt_addr_le_t *addr, int8_t rssi, const bthome_reading *reading);
 	static void OnEq3CommandDone(const bt_addr_le_t &addr, bool ok, const Eq3Status *status);
 	static void ProcessEq3Results(intptr_t);
 	static void ProcessEvents(intptr_t);
 	static void ReachabilityTimerHandler(k_timer *timer);
 	static void CheckReachability(intptr_t);
+	static void PendingTimerHandler(k_timer *timer);
+	static void CheckPending(intptr_t);
 
 	void HandleReading(const bt_addr_le_t &addr, const bthome_reading &reading);
-	CHIP_ERROR AddSensor(const bt_addr_le_t &addr, bool thermostat, Sensor *&sensor);
+	/* @p label: node label, or nullptr for the default ("Sensor 54AA", "Thermostat 3F02"). */
+	CHIP_ERROR AddSensor(const bt_addr_le_t &addr, bool thermostat, const char *label, Sensor *&sensor);
+	bool WaitForName(const bt_addr_le_t &addr, const bthome_reading &reading);
+	void AddPendingThermostat(PendingThermostat &pending, const char *label);
 	Sensor *Find(const bt_addr_le_t &addr);
 	Sensor *FindFree();
 	bool IsIgnored(const bt_addr_le_t &addr) const;
 	CHIP_ERROR SaveIgnored();
 
 	Sensor mSensors[kMaxSensors];
+	PendingThermostat mPending[kMaxPending];
 	bt_addr_le_t mIgnored[kMaxIgnored];
 	size_t mIgnoredCount = 0;
 	bool mFullWarningLogged = false;

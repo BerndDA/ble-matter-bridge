@@ -1,5 +1,6 @@
 /*
- * Background passive scan for advertisement-only sensors (BTHome v2).
+ * Background scan for advertisement-only sensors (BTHome v2). Passive, except while
+ * a newly heard thermostat's name is wanted (sensor_scanner_set_active).
  *
  * The scanner runs continuously with a low duty cycle so Thread keeps enough
  * radio time. It pauses while the bridge's GATT code scans for devices or
@@ -20,8 +21,12 @@
 extern "C" {
 #endif
 
+/* Longest advertised name kept, plus the terminating NUL (a name fills at most 29 bytes of an AD structure). */
+#define SENSOR_NAME_SIZE 30
+
 struct sensor_seen {
 	bt_addr_le_t addr;
+	char name[SENSOR_NAME_SIZE]; /* advertised name, empty until heard (usually only in scan responses) */
 	int8_t rssi;
 	struct bthome_reading last; /* merged: fields from all packets received so far */
 	int64_t last_seen_ms; /* k_uptime_get() of the last BTHome packet */
@@ -49,8 +54,21 @@ void sensor_scanner_resume(void);
 /* Copies up to @p max entries of the "devices heard" table. Returns the number copied. */
 size_t sensor_scanner_get_seen(struct sensor_seen *out, size_t max);
 
+/*
+ * Switches between passive and active scanning. Active scanning also requests scan responses,
+ * which is where eQ-3 thermostats send their name; it costs a little more radio time, so keep it
+ * on only while waiting for a name.
+ */
+void sensor_scanner_set_active(bool active);
+
+/* Copies the advertised name of @p addr into @p out. Returns false if none has been heard yet. */
+bool sensor_scanner_get_name(const bt_addr_le_t *addr, char *out, size_t out_size);
+
 /* Returns true while the background scan itself is running. */
 bool sensor_scanner_is_scanning(void);
+
+/* Returns true if the running background scan is an active one. */
+bool sensor_scanner_is_active(void);
 
 #ifdef __cplusplus
 }
