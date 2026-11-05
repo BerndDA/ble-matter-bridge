@@ -5,6 +5,8 @@
  * internal flash up to the factory data and settings partitions, which sit
  * at the same addresses as on the DK. The factory UF2 bootloader and the
  * SoftDevice area are erased by the first SWD flash.
+ *
+ * The variant that keeps the UF2 bootloader is promicro_nrf52840_nrf52840_uf2.overlay.
  */
 
 /delete-node/ &boot_partition;
@@ -15,25 +17,6 @@
 / {
 	chosen {
 		zephyr,code-partition = &slot0_partition;
-	};
-
-	/*
-	 * Optional function button: a push button between P1.06 and GND.
-	 * Hold it about 6 s for a factory reset, as Button 1 on the DK.
-	 * Unwired, the pull-up keeps it released.
-	 */
-	buttons {
-		compatible = "gpio-keys";
-
-		button0: button_0 {
-			gpios = <&gpio1 6 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>;
-			label = "Function button";
-			zephyr,code = <INPUT_KEY_0>;
-		};
-	};
-
-	aliases {
-		sw0 = &button0;
 	};
 };
 
@@ -63,27 +46,4 @@
 	};
 };
 
-/* Unused peripherals. P1.06 above is i2c1's SCL by default. */
-&uart0 {
-	status = "disabled";
-};
-
-&i2c0 {
-	status = "disabled";
-};
-
-&i2c1 {
-	status = "disabled";
-};
-
-&spi2 {
-	status = "disabled";
-};
-
-&pwm0 {
-	status = "disabled";
-};
-
-&adc {
-	status = "disabled";
-};
+#include "promicro_nrf52840_common.dtsi"

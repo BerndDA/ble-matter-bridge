@@ -1,0 +1,63 @@
+/*
+ * Pro Micro nRF52840 with the factory UF2 bootloader kept
+ * (board target promicro_nrf52840/nrf52840/uf2).
+ *
+ * Flashed by copying a .uf2 file to the board's USB drive; no SWD needed.
+ * The Nordic MBR stays at 0x0. There is no SoftDevice: the bootloader then
+ * starts the app at 0x1000 directly, so the 152 KB the SoftDevice would take
+ * are used by the app.
+ *
+ * The bootloader accepts UF2 writes only from 0x1000 to 0xea000, so the
+ * factory data must sit below 0xea000. Above it, up to the bootloader, lies
+ * the bootloader's "App Data Reserved" area, which it never touches: the
+ * settings go there and survive every flash, but a .uf2 can't erase them.
+ *
+ *   0x00000  MBR (4 KB)
+ *   0x01000  app (928 KB)
+ *   0xe9000  factory data (4 KB)
+ *   0xea000  settings (32 KB)
+ *   0xf2000  unused (8 KB)
+ *   0xf4000  UF2 bootloader and its settings (48 KB)
+ *
+ * Source: Adafruit_nRF52_Bootloader, src/usb/uf2/uf2cfg.h (USER_FLASH_START/END)
+ * and DFU_APP_DATA_RESERVED = 40 KB for the nRF52840.
+ */
+
+/delete-node/ &reserved_partition_0;
+/delete-node/ &code_partition;
+/delete-node/ &storage_partition;
+/delete-node/ &boot_partition;
+
+/ {
+	chosen {
+		zephyr,code-partition = &slot0_partition;
+	};
+};
+
+&flash0 {
+	partitions {
+		ranges;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		slot0_partition: partition@1000 {
+			compatible = "zephyr,mapped-partition";
+			label = "image-0";
+			reg = <0x00001000 DT_SIZE_K(928)>;
+		};
+
+		factory_data_partition: partition@e9000 {
+			compatible = "zephyr,mapped-partition";
+			label = "factory-data";
+			reg = <0x000e9000 DT_SIZE_K(4)>;
+		};
+
+		storage_partition: partition@ea000 {
+			compatible = "zephyr,mapped-partition";
+			label = "storage";
+			reg = <0x000ea000 DT_SIZE_K(32)>;
+		};
+	};
+};
+
+#include "promicro_nrf52840_common.dtsi"

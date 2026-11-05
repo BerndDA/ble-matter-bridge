@@ -1,14 +1,17 @@
 # Shortcuts for building, flashing and testing the gateway. `make` lists the targets.
 # Every target sets up the SDK itself (scripts/ncs-env.sh); no need to source it first.
-# Add BOARD=promicro to any target for the Pro Micro nRF52840 (build folders end in -promicro).
+# Add BOARD=promicro or BOARD=promicro-uf2 to any target for the Pro Micro nRF52840.
 
 SHELL := /bin/bash
 .DEFAULT_GOAL := help
 
 APP      := firmware/gateway
 
-# Board: dk (nRF52840 DK, default) or promicro (Pro Micro nRF52840, flashed over SWD
-# through the DK's Debug Out header). An exported BOARD from the shell is ignored.
+# Board:
+#   dk            nRF52840 DK (default)
+#   promicro      Pro Micro nRF52840, flashed over SWD through the DK's Debug Out header
+#   promicro-uf2  Pro Micro nRF52840 with its factory UF2 bootloader, flashed over USB
+# An exported BOARD from the shell is ignored.
 ifeq ($(origin BOARD),environment)
 BOARD    := dk
 endif
@@ -22,8 +25,21 @@ TARGET   := promicro_nrf52840/nrf52840
 SUFFIX   := -promicro
 # USB CDC port of the Pro Micro: any usbmodem port that isn't the DK's J-Link
 PORT     ?= $(firstword $(filter-out /dev/cu.usbmodem000683%,$(wildcard /dev/cu.usbmodem*)))
+else ifeq ($(BOARD),promicro-uf2)
+TARGET   := promicro_nrf52840/nrf52840/uf2
+SUFFIX   := -promicro-uf2
+UF2      := 1
+PORT     ?= $(firstword $(filter-out /dev/cu.usbmodem000683%,$(wildcard /dev/cu.usbmodem*)))
 else
-$(error BOARD must be dk or promicro)
+$(error BOARD must be dk, promicro or promicro-uf2)
+endif
+
+# Flash a build folder: west flash, or for promicro-uf2 the .uf2 copied to the bootloader drive
+ifdef UF2
+flash_dir = $(NCS) python3 scripts/make-uf2.py -o $(1)/gateway.uf2 --deploy \
+	$(1)/gateway/zephyr/zephyr.hex $(1)/matter_factory_data/zephyr/factory_data.hex
+else
+flash_dir = $(NCS) west flash -d $(1) $(2)
 endif
 
 BUILD    := $(APP)/build$(SUFFIX)
@@ -47,10 +63,16 @@ build: ## Build the gateway (incremental)
 	@$(NCS) west build -b $(TARGET) --sysbuild -d $(BUILD) $(APP)
 
 flash: build ## Build and flash; keeps commissioning and stored devices
-	@$(NCS) west flash -d $(BUILD)
+	@$(call flash_dir,$(BUILD))
 
 flash-erase: build ## Build and flash with a full erase; the gateway must be commissioned again
-	@$(NCS) west flash -d $(BUILD) --erase
+ifdef UF2
+	@echo "BOARD=promicro-uf2 can't erase over UF2: the settings lie outside what the bootloader writes."
+	@echo "Use 'make flash BOARD=promicro-uf2', then 'matter factoryreset' in the shell or hold the button 6 s."
+	@exit 1
+else
+	@$(call flash_dir,$(BUILD),--erase)
+endif
 
 release: ## Build with prj_release.conf (no logging, watchdog, reset on fatal error) into build-release
 	@$(NCS) west build -b $(TARGET) --sysbuild -d $(RELEASE) $(APP) -- -DFILE_SUFFIX=release
@@ -59,7 +81,7 @@ diag: ## Build the diagnostics firmware (stack, heap, thread statistics) into bu
 	@$(NCS) west build -b $(TARGET) --sysbuild -d $(DIAG) $(APP) -- -DEXTRA_CONF_FILE=diag.conf
 
 diag-flash: diag ## Build and flash the diagnostics firmware
-	@$(NCS) west flash -d $(DIAG)
+	@$(call flash_dir,$(DIAG))
 
 test: ## Run the host unit tests (BTHome parser)
 	@$(MAKE) --no-print-directory -C $(APP)/tests/host/bthome

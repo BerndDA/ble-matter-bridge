@@ -78,7 +78,7 @@ make flash-erase    # full erase: the gateway must be commissioned again
 make release        # release configuration (prj_release.conf) into build-release
 ```
 
-Add `BOARD=promicro` to any target for the Pro Micro nRF52840. See [Pro Micro nRF52840](#pro-micro-nrf52840).
+Add `BOARD=promicro` or `BOARD=promicro-uf2` to any target for the Pro Micro nRF52840. See [Pro Micro nRF52840](#pro-micro-nrf52840).
 
 The targets set up the SDK themselves through `scripts/ncs-env.sh`. For `west` by hand, run `source scripts/ncs-env.sh` first. The script uses the external drive if it's mounted and `/opt/nordic` otherwise. Set `NCS_ROOT` to use a different location. If `/opt/nordic` is a symlink, point `NCS_ROOT` at the real path instead, because the symlink breaks some linker script includes. It also points `NRFUTIL_HOME` at the nrfutil that ships with the VS Code extension, which `west flash` needs.
 
@@ -92,28 +92,46 @@ Run `matter onboardingcodes ble` in the shell to print them. Apple Home shows an
 
 ### Pro Micro nRF52840
 
-The Pro Micro (also sold as nice!nano clone or "SuperMini") is a second option next to the DK. It runs the same firmware with these differences:
+The Pro Micro (also sold as nice!nano clone or "SuperMini") is a second option next to the DK. It runs the same firmware, and there are two ways to flash it:
 
-| | DK | Pro Micro |
-| --- | --- | --- |
-| Bootloader | MCUboot, Matter OTA prepared | none, no OTA (no external flash for a second slot) |
-| Flash (debug / release) | 866 / 783 KB of 952 KB | 845 / 769 KB of 988 KB |
-| RAM (reserved at build time) | 213 KB | 218 KB (USB stack) |
-| Shell | UART through the J-Link | USB CDC on the board's own USB port |
-| Factory reset | hold Button 1 for 6 s | optional button between P1.06 and GND, held for 6 s; or `make flash-erase BOARD=promicro` |
-| Status LED | LED1 | the LED on P0.15 |
-| 32 kHz clock | crystal | internal RC oscillator, because many clones have no crystal |
+- **`BOARD=promicro-uf2`**: keeps the UF2 bootloader the board ships with. You flash over USB by copying a file. No wiring needed.
+- **`BOARD=promicro`**: flashed over SWD with the DK as programmer. This erases the UF2 bootloader, and gives a little more flash and a real full erase.
 
-**Wiring.** The DK flashes the Pro Micro through its **Debug Out** header (P20). Connect the header to the SWD pads on the back of the Pro Micro: SWDIO, SWDCLK, GND, and VTref (pin 1) to the Pro Micro's 3.3 V. The DK switches to the external target when it sees a voltage on VTref. Power the Pro Micro over its own USB port, which also carries the shell.
+| | DK | Pro Micro, UF2 | Pro Micro, SWD |
+| --- | --- | --- | --- |
+| Flashing | J-Link on board | `.uf2` file over USB | SWD from the DK's Debug Out |
+| Bootloader | MCUboot, Matter OTA prepared | Adafruit UF2, no OTA | none, no OTA |
+| Flash (debug / release) | 866 / 783 KB of 952 KB | 845 / 769 KB of 928 KB | 845 / 769 KB of 988 KB |
+| Full erase | `make flash-erase` | not possible over UF2; use the factory reset | `make flash-erase BOARD=promicro` |
+| RAM (reserved at build time) | 213 KB | 218 KB (USB stack) | 218 KB |
+| Shell | UART through the J-Link | USB CDC on the board's own USB port | same |
+| Factory reset | hold Button 1 for 6 s | optional button between P1.06 and GND, held for 6 s, or `matter factoryreset` in the shell | same |
+| Status LED | LED1 | the LED on P0.15 | same |
+| 32 kHz clock | crystal | internal RC oscillator, because many clones have no crystal | same |
 
-**First flash.** The board ships with the Adafruit UF2 bootloader, and its data sits where the gateway keeps its settings. Flash once with a full erase, which also removes the UF2 bootloader:
+There is no OTA on either Pro Micro variant: without external flash there is no room for a second image slot.
+
+**UF2 (`BOARD=promicro-uf2`).** Short RST to GND twice quickly. The board then shows up as a USB drive. Then run:
+
+```sh
+make flash BOARD=promicro-uf2   # builds gateway.uf2 and copies it to the drive; the board restarts
+make term BOARD=promicro-uf2    # shell over the Pro Micro's USB port
+```
+
+`scripts/make-uf2.py` merges the app and the Matter factory data into one `gateway.uf2`. The settings live in an area the bootloader never writes, so they survive every flash. That's also why `flash-erase` doesn't work here. To start from scratch, use `matter factoryreset` or the button instead.
+
+Not tested on hardware yet: that the bootloader starts the app at 0x1000 when there's no SoftDevice. According to the bootloader's source it should. If it doesn't, the board still shows up as a drive after a double tap, so nothing is lost.
+
+**SWD (`BOARD=promicro`).** The DK flashes the Pro Micro through its **Debug Out** header (P20). Connect the header to the SWD pads on the back of the Pro Micro: SWDIO, SWDCLK, GND, and VTref (pin 1) to the Pro Micro's 3.3 V. The DK switches to the external target when it sees a voltage on VTref. Power the Pro Micro over its own USB port, which also carries the shell. The first flash must be a full erase, because the UF2 bootloader's data sits where this variant keeps its settings:
 
 ```sh
 make flash-erase BOARD=promicro   # once; afterwards `make flash BOARD=promicro`
-make term BOARD=promicro          # shell over the Pro Micro's USB port
+make term BOARD=promicro
 ```
 
-The build folders end in `-promicro`. `make measure` only finds the DK's port.
+To go back to UF2 afterwards, flash the board's UF2 bootloader hex over SWD again.
+
+The build folders end in `-promicro` or `-promicro-uf2`. `make measure` only finds the DK's port.
 
 Both boards use the same Matter test credentials. Commission one gateway at a time.
 
@@ -123,6 +141,11 @@ The nRF52840 DK isn't a supported board for the SDK's Matter Bridge. Two sets of
 - `boards/nrf52840dk_nrf52840.{overlay,conf}`: the Matter flash layout with the 8 MB external flash, and BLE connections reduced to 3.
 - `sysbuild/mcuboot/boards/nrf52840dk_nrf52840.{overlay,conf}`: the same layout for the bootloader. Without these, MCUboot looks for the app at the wrong address and halts silently.
 
-The Pro Micro uses the board definition that ships with Zephyr (`promicro_nrf52840/nrf52840`), plus `boards/promicro_nrf52840_nrf52840.{overlay,conf}`: the flash layout without MCUboot (app from 0x0, factory data and settings at the same addresses as on the DK), the function button, and the RC clock. `Kconfig.sysbuild` turns off MCUboot and Matter OTA for this board.
+The Pro Micro uses the board definition that ships with Zephyr: `promicro_nrf52840/nrf52840` for SWD and `promicro_nrf52840/nrf52840/uf2` for UF2. The project adds:
+- `boards/promicro_nrf52840_nrf52840.{overlay,conf}` (SWD): app from 0x0, with factory data and settings at the same addresses as on the DK.
+- `boards/promicro_nrf52840_nrf52840_uf2.{overlay,conf}` (UF2): app from 0x1000 after the MBR, factory data at 0xe9000, settings at 0xea000. The bootloader only writes up to 0xea000, and keeps the 40 KB above that for the app's data. The overlay has the full map.
+- `boards/promicro_nrf52840_common.dtsi`: the function button and the disabled peripherals, used by both.
+
+`Kconfig.sysbuild` turns off MCUboot and Matter OTA for the Pro Micro.
 
 MCUboot is currently signed with the SDK's default debug key. Generate a project key before relying on firmware updates.
