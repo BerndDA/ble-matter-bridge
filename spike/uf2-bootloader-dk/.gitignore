@@ -1,0 +1,8 @@
+# Third-party clone (see README.md)
+src/
+# Downloaded release file
+pca10056_bootloader-*_s140_*.hex
+# Flash readbacks: they hold the device's Matter factory data and settings (DAC key)
+before.hex
+after.hex
+readback.hex
