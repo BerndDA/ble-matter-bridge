@@ -7,11 +7,12 @@ Firmware for an nRF52840 gateway. It brings existing BLE temperature/humidity se
 | Path | Contents |
 | --- | --- |
 | [firmware/gateway/](firmware/gateway/) | The gateway application |
-| [scripts/ncs-env.sh](scripts/ncs-env.sh) | Sets up the SDK and toolchain for terminal builds |
+| [Makefile](Makefile) | Shortcuts: build, flash, tests, shell, measurements (`make` lists them) |
+| [scripts/](scripts/) | `ncs-env.sh` sets up the SDK and toolchain; `diag-capture.py` and `diag-summary.py` for measurements |
 | [doc/BLE-to-Matter-over-Thread-Gateway.md](doc/BLE-to-Matter-over-Thread-Gateway.md) | Design: architecture, device handling, risks, plan |
 | [doc/Toolchain-Setup-VS-Code.md](doc/Toolchain-Setup-VS-Code.md) | Toolchain setup on macOS with VS Code |
-| [hello-world/](hello-world/) | Toolchain smoke test (Zephyr `hello_world` for the nRF52840 DK) |
-| [spike/](spike/) | Experiments and trial ports, one folder each. Kept as reference, not maintained. |
+| [doc/measurements.md](doc/measurements.md) | Memory, stack and radio measurements |
+| [spike/](spike/) | Experiments, one folder each, kept as reference: the toolchain smoke test (`hello-world`), the first bridge port (`matter-bridge-nrf52840`), and eQ-3 flashing tools (`eq3-flash`) |
 
 ## Status
 
@@ -22,36 +23,46 @@ Open tasks and decisions are in [TODO.md](TODO.md).
 | 1. Toolchain and stock bridge on a DK | Done. See [the spike](spike/matter-bridge-nrf52840/). |
 | 2. Commission into a controller | Done. Commissioned into Apple Home, with a HomePod as the Thread border router. |
 | 3. Advertisement-based sensors | Done for temperature and humidity: pvvx sensors (BTHome v2, unencrypted) are added to Matter automatically and show up in Apple Home. Battery level and low-battery warnings are reported too. |
-| 4. One thermostat (connect on demand) | Not started |
-| 5. Measure, then scale up or move to the nRF5340 | First measurement done with two sensors, see [doc/measurements.md](doc/measurements.md). The nRF52840 has enough headroom, and Thread stays stable while scanning. Far sensors are the weak point. To be measured again after step 4. |
+| 4. One thermostat (connect on demand) | Done: eQ-3 CC-RT-BLE with [custom firmware](spike/eq3-flash/README.md). Values come from its broadcasts; target and Off/Heat are set from Apple Home over a short GATT connection per command. |
+| 5. Measure, then scale up or move to the nRF5340 | Measured with sensors and with thermostat commands, see [doc/measurements.md](doc/measurements.md). The nRF52840 has enough headroom, and Thread stays stable. Far sensors are the weak point. |
 
-`firmware/gateway` is the spike with the parts the gateway doesn't need removed: the simulated devices, the on/off light and switch device types, the smart plug variant and the nRF5340/nRF54 board files. Memory use on the nRF52840 DK:
+`firmware/gateway` started as the spike with the parts the gateway doesn't need removed: the simulated devices, the on/off light and switch device types, the smart plug variant and the nRF5340/nRF54 board files. Memory use on the nRF52840 DK:
 
 | Image | Flash | RAM (reserved at build time) |
 | --- | --- | --- |
-| Gateway app | 846 KB of 975 KB (87%) | 209 KB of 256 KB (80%) |
-| MCUboot | 24 KB of 28 KB (85%) | 18 KB |
+| Gateway app (`make build`) | 866 KB of 975 KB (89 %) | 213 KB of 256 KB (81 %) |
+| Gateway app (`make release`) | 783 KB of 975 KB (80 %) | 212 KB of 256 KB (81 %) |
+| MCUboot | 24 KB of 28 KB (85 %) | 18 KB |
 
-## Sensors
+It takes up to 10 BTHome devices (for example 4 sensors and 4 thermostats) and 20 Matter endpoints.
 
-The gateway scans continuously for BTHome v2 advertisements (25 % duty cycle, so Thread keeps most of the radio time). A sensor heard for the first time is added as a Temperature Sensor and a Humidity Sensor endpoint, named `Sensor XXXX` after the last two bytes of its address. Added sensors are stored and keep their endpoints across reboots. A sensor is reported unreachable after 10 minutes without packets.
+## Sensors and thermostats
+
+The gateway scans continuously for BTHome v2 advertisements (25 % duty cycle, so Thread keeps most of the radio time). A device heard for the first time is added automatically and stored, so it keeps its endpoints across reboots:
+- **Sensors** (pvvx firmware) become a Temperature Sensor and a Humidity Sensor endpoint, named `Sensor XXXX` after the last two bytes of the address.
+- **eQ-3 thermostats** (eq3-custom-fw) become one Thermostat endpoint, `Thermostat XXXX`, with room temperature, target, Off/Heat, valve opening and battery. A target or mode set from Matter is sent to the thermostat over one short GATT connection (7–14 s until it has it) and also switches it to manual mode. The thermostat's pairing PIN must be off.
+
+Each device shows manufacturer, model and its Bluetooth address as serial number. A device is reported unreachable after 10 minutes without packets.
 
 Shell commands (in nRF Terminal, 115200 baud):
 
 | Command | Purpose |
 | --- | --- |
-| `gateway seen` | All BTHome sensors heard, with their latest values |
-| `gateway sensors` | Sensors bridged to Matter, with endpoints and reachability |
-| `gateway remove <addr>` | Remove a sensor (for example a neighbour's) and ignore it from now on |
-| `gateway unignore <addr>` | Allow an ignored sensor to be added again |
+| `gateway seen` | All BTHome devices heard, with their latest values (thermostats on a second line) |
+| `gateway sensors` | Devices bridged to Matter, with endpoints and reachability |
+| `gateway remove <addr>` | Remove a device (for example a neighbour's) and ignore it from now on |
+| `gateway unignore <addr>` | Allow an ignored device to be added again |
 | `gateway ignored` | List ignored addresses |
+| `gateway target <addr> <celsius>` | Set an eQ-3 thermostat's target, for tests (4.5 = off) |
 | `gateway pause <s>` | Pause the background scan for measurements (`0` resumes) |
 
-Settings in [Kconfig](firmware/gateway/Kconfig): `GATEWAY_BTHOME_AUTO_ADD`, `GATEWAY_BTHOME_MAX_SENSORS` (default 6), `GATEWAY_BTHOME_UNREACHABLE_TIMEOUT_S` (default 600), and the scan window and interval.
+`make term` opens the shell from a terminal.
 
-Parser tests run on the Mac: `make -C firmware/gateway/tests/host/bthome`.
+Settings in [Kconfig](firmware/gateway/Kconfig): `GATEWAY_BTHOME_AUTO_ADD`, `GATEWAY_BTHOME_MAX_SENSORS` (default 10), `GATEWAY_BTHOME_UNREACHABLE_TIMEOUT_S` (default 600), the scan window and interval, and for thermostats `GATEWAY_EQ3_TARGET_SETS_MANUAL`, `GATEWAY_EQ3_ATTEMPTS` and the timeouts.
 
-For RAM, stack and radio measurements, use the diagnostics build (`-DEXTRA_CONF_FILE=diag.conf`) with `scripts/diag-capture.py` and `scripts/diag-summary.py`. See [doc/measurements.md](doc/measurements.md).
+Parser tests run on the Mac: `make test`.
+
+For RAM, stack and radio measurements: `make diag-flash`, then `make measure` (add `THERMOSTAT=<addr>` to send thermostat commands) and `make summary`. See [doc/measurements.md](doc/measurements.md).
 
 ## Building and flashing
 
@@ -62,13 +73,12 @@ In VS Code, `firmware/gateway` appears in the nRF Connect panel. Add a build con
 From a terminal:
 
 ```sh
-source scripts/ncs-env.sh
-west build -b nrf52840dk/nrf52840 --sysbuild -d firmware/gateway/build firmware/gateway
-west flash -d firmware/gateway/build            # keeps commissioning and stored devices
-west flash -d firmware/gateway/build --erase    # full erase: the gateway must be commissioned again
+make flash          # build and flash; keeps commissioning and stored devices
+make flash-erase    # full erase: the gateway must be commissioned again
+make release        # release configuration (prj_release.conf) into build-release
 ```
 
-The script uses the external drive if it's mounted and `/opt/nordic` otherwise. Set `NCS_ROOT` to use a different location. If `/opt/nordic` is a symlink, point `NCS_ROOT` at the real path instead, because the symlink breaks some linker script includes. It also points `NRFUTIL_HOME` at the nrfutil that ships with the VS Code extension, which `west flash` needs.
+The targets set up the SDK themselves through `scripts/ncs-env.sh`. For `west` by hand, run `source scripts/ncs-env.sh` first. The script uses the external drive if it's mounted and `/opt/nordic` otherwise. Set `NCS_ROOT` to use a different location. If `/opt/nordic` is a symlink, point `NCS_ROOT` at the real path instead, because the symlink breaks some linker script includes. It also points `NRFUTIL_HOME` at the nrfutil that ships with the VS Code extension, which `west flash` needs.
 
 ### Commissioning
 

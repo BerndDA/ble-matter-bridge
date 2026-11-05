@@ -31,7 +31,7 @@ python3 scripts/diag-summary.py measurements/diag-<time>.log
 | System heap, peak | 0 of 516 B | **396 of 516 B** |
 | Matter heap, peak | 4.1 KB | 4.9 KB |
 
-GATT discovery takes its data from the system heap in chunks of 128 B, so one more chunk would not have fitted. Both are raised now: `CONFIG_BT_TX_PROCESSOR_STACK_SIZE=1024` and `CONFIG_HEAP_MEM_POOL_SIZE=1024` (about 760 B RAM). The release build uses 866 KB of 975 KB flash (89 %) and 212 KB of 256 KB RAM (81 %).
+GATT discovery takes its data from the system heap in chunks of 128 B, so one more chunk would not have fitted. Both are raised now: `CONFIG_BT_TX_PROCESSOR_STACK_SIZE=1024` and `CONFIG_HEAP_MEM_POOL_SIZE=1024` (about 760 B RAM). The normal build (`make build`) uses 866 KB of 975 KB flash (89 %) and 212 KB of 256 KB RAM (81 %).
 
 ### Thread
 

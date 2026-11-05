@@ -8,3 +8,7 @@ build.log
 # Diagnostic captures
 measurements/
 __pycache__/
+
+# Build logs and Python environments
+*.log
+.venv/
