@@ -390,7 +390,16 @@ int Send(const bt_addr_le_t &addr, const uint8_t *cmd, size_t len)
 
 int SetTarget(const bt_addr_le_t &addr, uint8_t halfDegrees)
 {
-	const uint8_t cmd[] = { kCmdSetTarget, CLAMP(halfDegrees, kMinTargetHalfDegrees, kMaxTargetHalfDegrees) };
+	const uint8_t target = CLAMP(halfDegrees, kMinTargetHalfDegrees, kMaxTargetHalfDegrees);
+	uint8_t cmd[2];
+
+	if (IS_ENABLED(CONFIG_GATEWAY_EQ3_TARGET_SETS_MANUAL)) {
+		cmd[0] = kCmdSetMode;
+		cmd[1] = uint8_t(kModeManual << 6 | target);
+	} else {
+		cmd[0] = kCmdSetTarget;
+		cmd[1] = target;
+	}
 	return Send(addr, cmd, sizeof(cmd));
 }
 

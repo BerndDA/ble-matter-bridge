@@ -12,7 +12,7 @@ What's left to do and to decide. Tick items off here; the plan behind the steps 
 
 ## Next
 
-- [ ] Step 4: measure again with thermostat commands (step 5), then decide on the eQ-3 modes.
+- [ ] Step 4: measure again with thermostat commands (step 5).
 
 ## Step 4: one thermostat
 
@@ -20,9 +20,9 @@ What's left to do and to decide. Tick items off here; the plan behind the steps 
 - [x] Thermostat endpoint (cluster 0x0201), read-only: room temperature, target, valve as heating demand, Off below 4.75 °C, battery from voltage and low flag.
 - [x] Checked in Apple Home.
 - [x] Setpoint and Off/Heat from Apple Home: one short GATT connection per command, 7–13 s until the thermostat has it. Needs the thermostat's PIN off ("Ask for a PIN" in the web app, or `PIn CodE` in its Bluetooth menu).
-- [ ] Decide whether the PIN should be on, with the gateway pairing once using the code from the display.
+- [x] Decided: thermostats run without PIN. The gateway does not pair; anyone in Bluetooth range could control or reflash a thermostat.
 - [ ] Connect sooner: many connect attempts miss the advertisement or drop at once (HCI 0x3E); try connecting right after the scanner hears the thermostat.
-- [ ] Map eQ-3 modes (auto, manual, holiday, boost) and decide what Apple Home shows for them.
+- [x] Decided: thermostats run in manual mode. Every target from Apple Home is sent as manual + target (`40 <0x40 | temp×2>`), so the weekly schedule does not override it (`CONFIG_GATEWAY_EQ3_TARGET_SETS_MANUAL`).
 - [ ] Command queue ahead of routine polls, with a timeout per connection attempt.
 - [ ] Measure again (step 5) with the thermostat connected.
 

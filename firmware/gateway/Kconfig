@@ -173,6 +173,14 @@ module = GATEWAY_SENSOR_SCANNER
 module-str = Gateway sensor scanner
 source "subsys/logging/Kconfig.template.log_config"
 
+config GATEWAY_EQ3_TARGET_SETS_MANUAL
+	bool "Setting a target switches the eQ-3 thermostat to manual mode"
+	default y
+	help
+	  Sends 40 <manual | target> instead of 41 <target>, so the target
+	  stays until the next change instead of only until the next switch
+	  point of the thermostat's weekly schedule.
+
 config GATEWAY_EQ3_ATTEMPTS
 	int "Attempts per eQ-3 thermostat command"
 	default 3

@@ -40,7 +40,9 @@ using Eq3Callback = void (*)(const bt_addr_le_t &addr, bool ok, const Eq3Status 
 namespace Eq3Client
 {
 
-constexpr uint8_t kCmdSetTarget = 0x41; /* 41 <temp x 2> */
+constexpr uint8_t kCmdSetTarget = 0x41; /* 41 <temp x 2>: target only, mode unchanged */
+constexpr uint8_t kCmdSetMode = 0x40; /* 40 <mode << 6 | temp x 2>: mode and target in one byte */
+constexpr uint8_t kModeManual = 1;
 constexpr uint8_t kMinTargetHalfDegrees = 9;
 constexpr uint8_t kMaxTargetHalfDegrees = 60;
 
@@ -53,7 +55,12 @@ void Init(Eq3Callback callback);
  */
 int Send(const bt_addr_le_t &addr, const uint8_t *cmd, size_t len);
 
-/* Convenience: 41 <halfDegrees>. */
+/*
+ * Sets the target. With CONFIG_GATEWAY_EQ3_TARGET_SETS_MANUAL it also switches
+ * the thermostat to manual mode (40 <0x40 | halfDegrees>), otherwise it keeps
+ * the mode (41 <halfDegrees>; in auto mode the target then holds only until the
+ * schedule's next switch point).
+ */
 int SetTarget(const bt_addr_le_t &addr, uint8_t halfDegrees);
 
 /* True while a command is queued or running. */
