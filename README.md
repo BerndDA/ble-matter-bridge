@@ -57,6 +57,7 @@ Shell commands (in nRF Terminal, 115200 baud):
 | `gateway ignored` | List ignored addresses |
 | `gateway target <addr> <celsius>` | Set an eQ-3 thermostat's target, for tests (4.5 = off) |
 | `gateway pause <s>` | Pause the background scan for measurements (`0` resumes) |
+| `gateway identity` | Chip ID, serial number and Matter setup code (also in release builds) |
 | `gateway bootloader` | Pro Micro (UF2) only: restart into the UF2 bootloader |
 
 `make term` opens the shell from a terminal.
@@ -66,6 +67,15 @@ Settings in [Kconfig](firmware/gateway/Kconfig): `GATEWAY_BTHOME_AUTO_ADD`, `GAT
 Parser tests run on the Mac: `make test`.
 
 For RAM, stack and radio measurements: `make diag-flash`, then `make measure` (add `THERMOSTAT=<addr>` to send thermostat commands) and `make summary`. See [doc/measurements.md](doc/measurements.md).
+
+## Ready-made firmware
+
+The [releases](https://github.com/BerndDA/ble-matter-bridge/releases) have release builds (no debug logging, watchdog on) for both boards, so no SDK is needed:
+
+- **Pro Micro / nice!nano clone**: double-tap RST to GND, copy `ble-gateway-<version>-promicro.uf2` to the drive that shows up. Needs UF2 bootloader 0.6.1 or later (see [Bootloader version](#pro-micro-nrf52840)).
+- **nRF52840 DK**: flash `ble-gateway-<version>-dk.hex` with nRF Connect Programmer or `nrfutil device program --firmware <file> --options chip_erase_mode=ERASE_ALL`.
+
+Every board computes its own setup code (see [Commissioning](#commissioning)). Read it in the shell with `gateway identity`: on the Pro Micro over its USB port, on the DK over the J-Link's serial port, both at 115200 baud.
 
 ## Building and flashing
 
@@ -87,17 +97,14 @@ The targets set up the SDK themselves through `scripts/ncs-env.sh`. For `west` b
 
 ### Commissioning
 
-Each gateway has its own Matter identity (serial number, discriminator, setup code), so several can be in the same home:
+Every gateway has its own Matter identity, so several can be in the same home. The firmware derives it at boot from the chip's unique ID (FICR DEVICEID), on every board and in every build: serial number `BLEGW-<chip ID>`, and discriminator, setup code, SPAKE2+ salt and rotating device ID hashed from the chip ID ([src/identity/](firmware/gateway/src/identity/chip_id_identity.h)). One firmware image thus works for every board, and the same board always gets the same codes, also after a re-flash. Certificates, vendor and product still come from the factory data.
 
-| | QR code | Manual code | Set in |
-| --- | --- | --- | --- |
-| DK | `MT:06PS0CEK010O0648G00` | `34970212338` | [boards/nrf52840dk_nrf52840.conf](firmware/gateway/boards/nrf52840dk_nrf52840.conf) |
-| Pro Micro, UF2 | one per board | one per board | derived from the board's chip ID when flashing, see below |
-| Pro Micro, SWD | `MT:06PS042C00KA0648G00` | `34970112332` | Matter's default test values |
+To get a board's setup code:
 
-Run `matter onboardingcodes ble` in the shell to print them. Apple Home shows an "Uncertified Accessory" warning; choose **Add Anyway**. To factory-reset the gateway, hold **Button 1** on the DK for about 6 seconds, or run `matter device factoryreset` in the shell.
+- `matter onboardingcodes ble` in the gateway's shell, or
+- `make identity` (DK, chip ID read over the J-Link), `make identity BOARD=promicro-uf2` (board on its UF2 drive), or `make identity CHIP_ID=<16 hex digits>` for any board. It also writes a QR code image to `<build folder>/identity/<chip ID>/factory_data.png`. `make flash BOARD=promicro-uf2` prints the code as well.
 
-After a change to the DK's identity, build it from scratch (`west build -p always`, or delete the build folder). An incremental build keeps the old factory data. Then flash with `make flash-erase`.
+The derivation isn't secret, just like a code printed on a device: anyone holding the board can read its chip ID. Apple Home shows an "Uncertified Accessory" warning; choose **Add Anyway**. To factory-reset the gateway, hold **Button 1** on the DK for about 6 seconds, or run `matter device factoryreset` in the shell. A gateway commissioned with older firmware that had other codes keeps working, but must be factory-reset and removed from Apple Home (see below) before it can be added again with its new codes.
 
 **Removing and adding again.** iOS adds the gateway to two Matter fabrics: the Home app's and its own. Removing it in the Home app only removes the first one. The gateway then stays commissioned and doesn't advertise, so it can't be added again. Also remove it under **Settings → General → Matter Accessories** on the iPhone. With its last fabric gone, the gateway erases itself and restarts, ready to be added again. A factory reset does the same.
 
@@ -132,8 +139,6 @@ make term BOARD=promicro-uf2    # shell over the Pro Micro's USB port
 If the board isn't on its UF2 drive yet, `make flash` sends `gateway bootloader` over the USB shell first (`make term` must be closed) and waits for the drive. The very first time, or with firmware older than that command, short RST to GND twice quickly instead; the board then shows up as a USB drive.
 
 `scripts/make-uf2.py` merges the app and the Matter factory data into one `gateway.uf2`. The settings live in an area the bootloader never writes, so they survive every flash. That's also why `flash-erase` doesn't work here. To start from scratch, use `matter device factoryreset` or the button instead.
-
-**Identity per board.** The bootloader reports the chip's unique ID (FICR DEVICEID) as its USB serial number. `make flash` reads it from the drive and generates the factory data for that board: serial number `BLEGW-<chip ID>`, and discriminator, setup code, SPAKE2+ salt and rotating device ID hashed from the chip ID. The same board always gets the same codes; `make flash` prints them, and `make identity BOARD=promicro-uf2` shows them again (with the board on the drive, or `CHIP_ID=<16 hex digits>`). The derivation isn't secret, just like a code printed on a device: anyone with the board can read its chip ID. The files land in `build-promicro-uf2/identity/<chip ID>/`, including a QR code image. A board that was commissioned with other codes must be factory-reset and removed from Apple Home (see above) before it's added with its new codes.
 
 **Bootloader version.** The gateway needs UF2 bootloader 0.6.1 or later; check the first line of `INFO_UF2.TXT` on the drive. Older versions, such as the 0.6.0 that some clones ship with, only write up to 0xAD000 and would silently drop the end of the gateway and its factory data. Update by copying `update-nice_nano_bootloader-<version>_nosd.uf2` from the [Adafruit releases](https://github.com/adafruit/Adafruit_nRF52_Bootloader/releases) to the drive; it keeps the SoftDevice, which the first `gateway.uf2` then overwrites. Tested: 0.6.0 updated to 0.11.0 this way, and the gateway runs on it. Details in [spike/uf2-bootloader-dk](spike/uf2-bootloader-dk/README.md).
 

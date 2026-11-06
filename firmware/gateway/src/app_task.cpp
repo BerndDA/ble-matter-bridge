@@ -7,6 +7,9 @@
 #include "app_task.h"
 #include "sensor_scanner.h"
 #include "bthome_sensor_manager.h"
+#ifdef CONFIG_GATEWAY_IDENTITY_FROM_CHIP_ID
+#include "identity/chip_id_identity.h"
+#endif
 
 #ifdef CONFIG_BRIDGED_DEVICE_BT
 #include "ble_bridged_device_factory.h"
@@ -114,6 +117,9 @@ void AppFactoryResetHandler(const ChipDeviceEvent *event, intptr_t /* unused */)
 }
 #endif
 
+#ifdef CONFIG_GATEWAY_IDENTITY_FROM_CHIP_ID
+Gateway::ChipIdFactoryDataProvider sChipIdFactoryDataProvider;
+#endif
 } /* namespace */
 
 CHIP_ERROR AppTask::RestoreBridgedDevices()
@@ -190,7 +196,11 @@ void AppTask::ButtonEventHandler(Nrf::ButtonState state, Nrf::ButtonMask hasChan
 CHIP_ERROR AppTask::Init()
 {
 	/* Initialize Matter stack */
-	ReturnErrorOnFailure(Nrf::Matter::PrepareServer(Nrf::Matter::InitData{ .mPostServerInitClbk = [] {
+	ReturnErrorOnFailure(Nrf::Matter::PrepareServer(Nrf::Matter::InitData{
+#ifdef CONFIG_GATEWAY_IDENTITY_FROM_CHIP_ID
+		.mFactoryDataProvider = &sChipIdFactoryDataProvider,
+#endif
+		.mPostServerInitClbk = [] {
 #ifdef CONFIG_BRIDGED_DEVICE_BT
 #ifndef CONFIG_BRIDGE_SMART_PLUG_SUPPORT
 		Nrf::BLEConnectivityManager::Instance().RegisterStateCallback(BLEStateChangeCallback);

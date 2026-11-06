@@ -192,6 +192,24 @@ config GATEWAY_BTHOME_QUEUE_SIZE
 	int "Readings queued between the Bluetooth and Matter threads"
 	default 8
 
+config GATEWAY_IDENTITY_FROM_CHIP_ID
+	bool "Derive the Matter identity from the chip ID"
+	default y
+	depends on CHIP_FACTORY_DATA
+	# The SPAKE2+ verifier is computed on the device (src/crypto/PSASpake2p.cpp in Matter:
+	# PBKDF2 from a password key into a derived SPAKE2+ key pair, whose public part is the verifier).
+	select PSA_WANT_ALG_PBKDF2_HMAC
+	select PSA_WANT_KEY_TYPE_PASSWORD
+	select PSA_WANT_KEY_TYPE_SPAKE2P_KEY_PAIR_DERIVE
+	select PSA_WANT_KEY_TYPE_SPAKE2P_KEY_PAIR_EXPORT
+	help
+	  Serial number, discriminator, setup code, SPAKE2+ salt and verifier and
+	  the rotating device ID are derived from FICR DEVICEID at boot instead of
+	  read from the factory data, so one image gives every board its own
+	  identity (src/identity/chip_id_identity.h). `make identity` prints the
+	  same codes. Certificates, vendor and product still come from the
+	  factory data.
+
 config GATEWAY_UF2_BOOTLOADER_CMD
 	bool "Shell command to restart into the UF2 bootloader"
 	default y if BOARD_PROMICRO_NRF52840_NRF52840_UF2

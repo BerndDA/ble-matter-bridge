@@ -35,11 +35,11 @@ $(error BOARD must be dk, promicro or promicro-uf2)
 endif
 
 # Flash a build folder: west flash, or for promicro-uf2 the .uf2 copied to the bootloader drive
-# promicro-uf2: each board gets its own Matter identity, derived from its chip ID (see scripts/make-uf2.py)
+# promicro-uf2: make-uf2.py also prints the board's setup code (the firmware derives it from the chip ID).
+# Without a UF2 drive, it first sends `gateway bootloader` on PORT.
 ifdef UF2
-# Without a UF2 drive, make-uf2.py first sends `gateway bootloader` on PORT.
 flash_dir = $(NCS) python3 scripts/make-uf2.py -o $(1)/gateway.uf2 --deploy --identity $(1) \
-	$(if $(PORT),--port $(PORT)) $(1)/gateway/zephyr/zephyr.hex
+	$(if $(PORT),--port $(PORT)) $(1)/gateway/zephyr/zephyr.hex $(1)/matter_factory_data/zephyr/factory_data.hex
 else
 flash_dir = $(NCS) west flash -d $(1) $(2)
 endif
@@ -102,13 +102,9 @@ term: ## Open the gateway shell (115200 baud; Ctrl+] quits). Close nRF Terminal 
 	@test -n "$(PORT)" || { echo "No serial port found for BOARD=$(BOARD); set PORT=/dev/cu.usbmodem..."; exit 1; }
 	@$(NCS) python3 -m serial.tools.miniterm --raw --eol CR $(PORT) 115200
 
-identity: ## promicro-uf2: show the setup code of the board on the UF2 drive (or of CHIP_ID=<16 hex digits>)
-ifndef UF2
-	@echo "Only for BOARD=promicro-uf2; the DK's identity is set in firmware/gateway/boards/nrf52840dk_nrf52840.conf."
-	@exit 1
-else
-	@$(NCS) python3 scripts/make-uf2.py --identity $(BUILD) --show $(if $(CHIP_ID),--chip-id $(CHIP_ID))
-endif
+identity: ## Show the board's Matter setup code (from the UF2 drive, the J-Link, or CHIP_ID=<16 hex digits>)
+	@$(NCS) python3 scripts/make-uf2.py --identity $(BUILD) \
+		$(if $(CHIP_ID),--chip-id $(CHIP_ID),$(if $(UF2),,--jlink))
 
 chip-tool: ## Build chip-tool (Matter controller for the Mac) from tools/connectedhomeip; first run takes long
 	@git submodule update --init tools/connectedhomeip

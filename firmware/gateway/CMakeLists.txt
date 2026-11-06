@@ -73,4 +73,6 @@ target_sources(app PRIVATE
   ${ZEPHYR_NRF_MODULE_DIR}/samples/matter/common/src/binding/binding_handler.cpp
 )
 
+target_sources_ifdef(CONFIG_GATEWAY_IDENTITY_FROM_CHIP_ID app PRIVATE src/identity/chip_id_identity.cpp)
+
 ncs_configure_data_model()

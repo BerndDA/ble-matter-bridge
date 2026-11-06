@@ -8,6 +8,7 @@
  *   gateway pause <seconds>            pause the background scan (0 resumes), for measurements
  *   gateway target <addr> <celsius>    set an eQ-3 thermostat's target (4.5 = off, 30 = on), for tests
  *   gateway bootloader                 restart into the UF2 bootloader (Pro Micro UF2 builds only)
+ *   gateway identity                   chip ID, serial number and Matter setup code (also in release builds)
  *
  * <addr> is written as printed by `gateway seen`, e.g. A4:C1:38:0C:54:AA.
  * [type] is "public" (default) or "random".
@@ -16,6 +17,10 @@
 #include <stdlib.h>
 
 #include <platform/CHIPDeviceLayer.h>
+#include <platform/DeviceInstanceInfoProvider.h>
+#include <setup_payload/OnboardingCodesUtil.h>
+
+#include <hal/nrf_ficr.h>
 
 #include <zephyr/bluetooth/addr.h>
 #include <zephyr/kernel.h>
@@ -284,6 +289,38 @@ int CmdTarget(const struct shell *sh, size_t, char **argv)
 	return 0;
 }
 
+int CmdIdentity(const struct shell *sh, size_t, char **)
+{
+	char qr[128];
+	char manual[32];
+	char serial[48] = "?";
+	chip::MutableCharSpan qrSpan(qr);
+	chip::MutableCharSpan manualSpan(manual);
+	const chip::RendezvousInformationFlags flags(chip::RendezvousInformationFlag::kBLE);
+
+	chip::DeviceLayer::PlatformMgr().LockChipStack();
+	const CHIP_ERROR qrErr = GetQRCode(qrSpan, flags);
+	const CHIP_ERROR manualErr = GetManualPairingCode(manualSpan, flags);
+	auto *info = chip::DeviceLayer::GetDeviceInstanceInfoProvider();
+	if (info) {
+		info->GetSerialNumber(serial, sizeof(serial));
+	}
+	chip::DeviceLayer::PlatformMgr().UnlockChipStack();
+
+	/* Same format as the UF2 bootloader's USB serial number and src/identity/chip_id_identity.h */
+	shell_print(sh, "Chip ID:       %08X%08X", unsigned(nrf_ficr_deviceid_get(NRF_FICR, 1)),
+		    unsigned(nrf_ficr_deviceid_get(NRF_FICR, 0)));
+	shell_print(sh, "Serial number: %s", serial);
+	if (qrErr != CHIP_NO_ERROR || manualErr != CHIP_NO_ERROR) {
+		shell_error(sh, "Setup code not available (%" CHIP_ERROR_FORMAT ")",
+			    (qrErr != CHIP_NO_ERROR ? qrErr : manualErr).Format());
+		return -EIO;
+	}
+	shell_print(sh, "Setup code:    %.*s", int(manualSpan.size()), manualSpan.data());
+	shell_print(sh, "QR code:       %.*s", int(qrSpan.size()), qrSpan.data());
+	return 0;
+}
+
 #if defined(CONFIG_GATEWAY_UF2_BOOTLOADER_CMD)
 /* Adafruit_nRF52_Bootloader: GPREGRET value that keeps it in UF2 mode after a reset (DFU_MAGIC_UF2_RESET). */
 constexpr uint32_t kUf2BootloaderMagic = 0x57;
@@ -317,6 +354,7 @@ SHELL_STATIC_SUBCMD_SET_CREATE(
 		      "Pause the background scan (for measurements); 0 resumes.\n"
 		      "Usage: pause <seconds>",
 		      CmdPause, 2, 0),
+	SHELL_CMD_ARG(identity, NULL, "Show chip ID, serial number and the Matter setup code.", CmdIdentity, 1, 0),
 	SHELL_COND_CMD_ARG(IS_ENABLED(CONFIG_GATEWAY_UF2_BOOTLOADER_CMD), bootloader, NULL,
 			   "Restart into the UF2 bootloader, which then shows up as a USB drive.",
 			   COND_CODE_1(CONFIG_GATEWAY_UF2_BOOTLOADER_CMD, (CmdBootloader), (NULL)), 1, 0),

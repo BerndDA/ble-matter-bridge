@@ -6,19 +6,20 @@ The app and the Matter factory data go into one .uf2. The bootloader only writes
 0x1000-0xea000, so everything must lie in that range (see
 firmware/gateway/boards/promicro_nrf52840_nrf52840_uf2.overlay).
 
-Per-board identity (--identity BUILD_DIR): instead of the build's factory data,
-which every board would share, the factory data is generated for the board on the
-UF2 drive. Its chip ID (FICR DEVICEID, which the bootloader reports as its USB
-serial number) gives serial number, discriminator, setup code, SPAKE2+ salt and
-rotating device ID, always the same for the same board (see derive_identity).
-All other values come from the build's own generator command, so they follow Kconfig.
+Per-board identity: the firmware derives serial number, discriminator, setup code,
+SPAKE2+ salt and rotating device ID from the chip ID (FICR DEVICEID) at boot
+(CONFIG_GATEWAY_IDENTITY_FROM_CHIP_ID, firmware/gateway/src/identity/). The UF2
+bootloader reports the same chip ID as its USB serial number, so --identity
+BUILD_DIR computes the same values here (derive_identity) and prints the board's
+setup code. The generated factory data under BUILD_DIR/identity/<chip ID>/ is only
+used for that printout and the QR code image; the .uf2 carries the build's own
+factory data, the same for every board.
 
 Usage:
-  make-uf2.py -o gateway.uf2 [--deploy] app.hex factory_data.hex
-  make-uf2.py -o gateway.uf2 --deploy --identity BUILD_DIR app.hex
-  make-uf2.py -o gateway.uf2 --deploy --identity BUILD_DIR --port /dev/cu.usbmodem31101 app.hex
-              (no UF2 drive: sends `gateway bootloader` on that port first)
-  make-uf2.py --identity BUILD_DIR --chip-id 54932B32846202D7 --show   (codes of a board, no drive needed)
+  make-uf2.py -o gateway.uf2 [--deploy] [--identity BUILD_DIR] [--port PORT] app.hex factory_data.hex
+              --port: without a UF2 drive, sends `gateway bootloader` on that port first
+  make-uf2.py --identity BUILD_DIR [--chip-id 54932B32846202D7 | --jlink]   (codes of a board only;
+              --jlink reads the chip ID over the J-Link, e.g. from the DK)
 """
 import argparse
 import base64
@@ -31,6 +32,7 @@ import shlex
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 
 from intelhex import IntelHex
@@ -45,6 +47,15 @@ SERIAL_PREFIX = "BLEGW-"
 # Matter core spec 5.1.7.1: setup codes 1..99999998, minus these
 INVALID_PASSCODES = {0, 11111111, 22222222, 33333333, 44444444, 55555555, 66666666, 77777777, 88888888,
                      99999999, 12345678, 87654321}
+
+
+def jlink_chip_id():
+    """FICR DEVICEID over the J-Link (nrfjprog), as the 16 hex digits the firmware and the bootloader use."""
+    res = subprocess.run(["nrfjprog", "--memrd", "0x10000060", "--n", "8"], capture_output=True, text=True)
+    m = re.search(r"0x10000060:\s+([0-9A-Fa-f]{8})\s+([0-9A-Fa-f]{8})", res.stdout)
+    if not m:
+        sys.exit("make-uf2: cannot read the chip ID over the J-Link; pass --chip-id\n%s" % res.stderr.strip())
+    return (m.group(2) + m.group(1)).upper()  # DEVICEID[1] DEVICEID[0]
 
 
 def uf2_drives():
@@ -62,13 +73,25 @@ def enter_bootloader(port, timeout_s=20):
         sys.exit("make-uf2: no UF2 drive, and %s is not the gateway's USB shell. Double-tap RST to GND." % port)
 
     print("make-uf2: no UF2 drive; restarting the gateway on %s into the bootloader" % port)
-    try:
-        with serial.Serial(port, 115200, timeout=0.2, write_timeout=2) as s:
-            s.write(b"\ngateway bootloader\n")
-            s.flush()
-            time.sleep(0.5)
-    except (serial.SerialException, OSError) as e:
-        sys.exit("make-uf2: cannot use %s (%s). Close `make term`, or double-tap RST to GND." % (port, e))
+    result = {}
+
+    def send():
+        try:
+            with serial.Serial(port, 115200, timeout=0.2, write_timeout=2) as s:
+                s.write(b"\ngateway bootloader\n")
+                s.flush()
+                time.sleep(0.5)
+            result["ok"] = True
+        except (serial.SerialException, OSError) as e:
+            result["error"] = e
+
+    # A hung gateway can block even the open() of its port; don't wait for it forever.
+    sender = threading.Thread(target=send, daemon=True)
+    sender.start()
+    sender.join(5)
+    if "ok" not in result:
+        reason = result.get("error", "the gateway doesn't answer")
+        sys.exit("make-uf2: cannot use %s (%s). Close `make term`, or double-tap RST to GND." % (port, reason))
 
     deadline = time.time() + timeout_s
     while time.time() < deadline:
@@ -196,24 +219,30 @@ def main():
     ap.add_argument("-o", "--out", help="output .uf2")
     ap.add_argument("--deploy", action="store_true", help="copy the .uf2 to the UF2 bootloader drive")
     ap.add_argument("--identity", metavar="BUILD_DIR",
-                    help="generate per-board factory data with the generator command of this sysbuild folder")
+                    help="print the board's setup code, computed with the generator command of this sysbuild folder")
     ap.add_argument("--chip-id", help="chip ID (16 hex digits) instead of reading it from the UF2 drive")
-    ap.add_argument("--show", action="store_true", help="with --identity: only print the board's codes")
+    ap.add_argument("--jlink", action="store_true", help="read the chip ID over the J-Link instead")
     ap.add_argument("--port", help="gateway shell port: without a UF2 drive, restart the gateway into the bootloader")
     args = ap.parse_args()
 
-    drive = find_drive(args.port) if args.deploy or (args.identity and not args.chip_id) else None
+    drive = find_drive(args.port) if args.deploy or (args.identity and not (args.chip_id or args.jlink)) else None
+
 
     hex_files = list(args.hex)
     if args.identity:
-        chip_id = args.chip_id.upper() if args.chip_id else drive_chip_id(drive)
+        if args.chip_id:
+            chip_id = args.chip_id.upper()
+        elif args.jlink:
+            chip_id = jlink_chip_id()
+        else:
+            chip_id = drive_chip_id(drive)
         if not re.fullmatch(r"[0-9A-F]{16}", chip_id):
             sys.exit("make-uf2: chip ID must be 16 hex digits")
-        factory_hex, summary = generate_factory_data(args.identity, chip_id)
-        print("make-uf2: identity of this board:\n  " + summary.replace("\n", "\n  "))
-        if args.show:
+        _, summary = generate_factory_data(args.identity, chip_id)
+        print("make-uf2: identity of this board (derived by the firmware at boot):\n  "
+              + summary.replace("\n", "\n  "))
+        if not args.out and not hex_files:
             return
-        hex_files.append(factory_hex)
 
     if not args.out or not hex_files:
         ap.error("need -o and at least one hex file")
