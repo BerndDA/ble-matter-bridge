@@ -35,9 +35,10 @@ $(error BOARD must be dk, promicro or promicro-uf2)
 endif
 
 # Flash a build folder: west flash, or for promicro-uf2 the .uf2 copied to the bootloader drive
+# promicro-uf2: each board gets its own Matter identity, derived from its chip ID (see scripts/make-uf2.py)
 ifdef UF2
-flash_dir = $(NCS) python3 scripts/make-uf2.py -o $(1)/gateway.uf2 --deploy \
-	$(1)/gateway/zephyr/zephyr.hex $(1)/matter_factory_data/zephyr/factory_data.hex
+flash_dir = $(NCS) python3 scripts/make-uf2.py -o $(1)/gateway.uf2 --deploy --identity $(1) \
+	$(1)/gateway/zephyr/zephyr.hex
 else
 flash_dir = $(NCS) west flash -d $(1) $(2)
 endif
@@ -61,7 +62,7 @@ CHIP_TOOL := $(CHIP)/out/darwin-arm64-chip-tool/chip-tool
 CHIP_ZAP     := $(CHIP)/.environment/zap-arm64
 CHIP_ZAP_VER := v2026.05.12-nightly
 
-.PHONY: help build flash flash-erase release diag diag-flash test zap term measure summary chip-tool clean
+.PHONY: help build flash flash-erase release diag diag-flash test zap term measure summary identity chip-tool clean
 
 help: ## List the targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  make %-12s %s\n", $$1, $$2}'
@@ -99,6 +100,14 @@ zap: ## Regenerate the Matter data model code after editing bridge.zap
 term: ## Open the gateway shell (115200 baud; Ctrl+] quits). Close nRF Terminal first
 	@test -n "$(PORT)" || { echo "No serial port found for BOARD=$(BOARD); set PORT=/dev/cu.usbmodem..."; exit 1; }
 	@$(NCS) python3 -m serial.tools.miniterm --raw --eol CR $(PORT) 115200
+
+identity: ## promicro-uf2: show the setup code of the board on the UF2 drive (or of CHIP_ID=<16 hex digits>)
+ifndef UF2
+	@echo "Only for BOARD=promicro-uf2; the DK's identity is set in firmware/gateway/boards/nrf52840dk_nrf52840.conf."
+	@exit 1
+else
+	@$(NCS) python3 scripts/make-uf2.py --identity $(BUILD) --show $(if $(CHIP_ID),--chip-id $(CHIP_ID))
+endif
 
 chip-tool: ## Build chip-tool (Matter controller for the Mac) from tools/connectedhomeip; first run takes long
 	@git submodule update --init tools/connectedhomeip

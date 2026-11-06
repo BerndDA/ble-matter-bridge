@@ -84,12 +84,13 @@ The targets set up the SDK themselves through `scripts/ncs-env.sh`. For `west` b
 
 ### Commissioning
 
-The Pro Micro uses Matter's default test credentials. The DK has its own, set in [boards/nrf52840dk_nrf52840.conf](firmware/gateway/boards/nrf52840dk_nrf52840.conf), so both gateways can be in the same home:
+Each gateway has its own Matter identity (serial number, discriminator, setup code), so several can be in the same home:
 
-| | QR code | Manual code |
-| --- | --- | --- |
-| Pro Micro | `MT:06PS042C00KA0648G00` | `34970112332` |
-| DK | `MT:06PS0CEK010O0648G00` | `34970212338` |
+| | QR code | Manual code | Set in |
+| --- | --- | --- | --- |
+| DK | `MT:06PS0CEK010O0648G00` | `34970212338` | [boards/nrf52840dk_nrf52840.conf](firmware/gateway/boards/nrf52840dk_nrf52840.conf) |
+| Pro Micro, UF2 | one per board | one per board | derived from the board's chip ID when flashing, see below |
+| Pro Micro, SWD | `MT:06PS042C00KA0648G00` | `34970112332` | Matter's default test values |
 
 Run `matter onboardingcodes ble` in the shell to print them. Apple Home shows an "Uncertified Accessory" warning; choose **Add Anyway**. To factory-reset the gateway, hold **Button 1** on the DK for about 6 seconds, or run `matter device factoryreset` in the shell.
 
@@ -127,7 +128,9 @@ make term BOARD=promicro-uf2    # shell over the Pro Micro's USB port
 
 `scripts/make-uf2.py` merges the app and the Matter factory data into one `gateway.uf2`. The settings live in an area the bootloader never writes, so they survive every flash. That's also why `flash-erase` doesn't work here. To start from scratch, use `matter device factoryreset` or the button instead.
 
-Not tested on hardware yet: that the bootloader starts the app at 0x1000 when there's no SoftDevice. According to the bootloader's source it should. If it doesn't, the board still shows up as a drive after a double tap, so nothing is lost.
+**Identity per board.** The bootloader reports the chip's unique ID (FICR DEVICEID) as its USB serial number. `make flash` reads it from the drive and generates the factory data for that board: serial number `BLEGW-<chip ID>`, and discriminator, setup code, SPAKE2+ salt and rotating device ID hashed from the chip ID. The same board always gets the same codes; `make flash` prints them, and `make identity BOARD=promicro-uf2` shows them again (with the board on the drive, or `CHIP_ID=<16 hex digits>`). The derivation isn't secret, just like a code printed on a device: anyone with the board can read its chip ID. The files land in `build-promicro-uf2/identity/<chip ID>/`, including a QR code image. A board that was commissioned with other codes must be factory-reset and removed from Apple Home (see above) before it's added with its new codes.
+
+**Bootloader version.** The gateway needs UF2 bootloader 0.6.1 or later; check the first line of `INFO_UF2.TXT` on the drive. Older versions, such as the 0.6.0 that some clones ship with, only write up to 0xAD000 and would silently drop the end of the gateway and its factory data. Update by copying `update-nice_nano_bootloader-<version>_nosd.uf2` from the [Adafruit releases](https://github.com/adafruit/Adafruit_nRF52_Bootloader/releases) to the drive; it keeps the SoftDevice, which the first `gateway.uf2` then overwrites. Tested: 0.6.0 updated to 0.11.0 this way, and the gateway runs on it. Details in [spike/uf2-bootloader-dk](spike/uf2-bootloader-dk/README.md).
 
 **SWD (`BOARD=promicro`).** The DK flashes the Pro Micro through its **Debug Out** header (P20). Connect the header to the SWD pads on the back of the Pro Micro: SWDIO, SWDCLK, GND, and VTref (pin 1) to the Pro Micro's 3.3 V. The DK switches to the external target when it sees a voltage on VTref. Power the Pro Micro over its own USB port, which also carries the shell. The first flash must be a full erase, because the UF2 bootloader's data sits where this variant keeps its settings:
 
