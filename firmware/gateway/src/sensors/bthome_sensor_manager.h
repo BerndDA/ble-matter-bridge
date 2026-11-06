@@ -9,6 +9,10 @@
  *   CONFIG_GATEWAY_EQ3_NAME_WAIT_S: a renamed unit ("eQ3-Dusche") gets the
  *   node label "Dusche", which controllers take as the initial name. The name
  *   comes in scan responses, so the scanner scans actively while waiting.
+ * - A thermostat still on its generated label keeps looking for its name: every
+ *   CONFIG_GATEWAY_EQ3_NAME_RETRY_MIN minutes the scanner scans actively for
+ *   CONFIG_GATEWAY_EQ3_NAME_WAIT_S. When the name is heard, the label changes
+ *   and is stored. A label set by the controller is never replaced.
  * - Added sensors are stored by the bridge storage and restored on boot with
  *   the same endpoint IDs, so names and rooms in the controller are kept.
  * - Removed sensors go on an ignore list so auto-add does not bring them back.
@@ -115,6 +119,11 @@ private:
 	/* @p label: node label, or nullptr for the default ("Sensor 54AA", "Thermostat 3F02"). */
 	CHIP_ERROR AddSensor(const bt_addr_le_t &addr, bool thermostat, const char *label, Sensor *&sensor);
 	bool WaitForName(const bt_addr_le_t &addr, const bthome_reading &reading);
+	bool HasGeneratedLabel(const Sensor &sensor) const;
+	bool RenameIfNamed(Sensor &sensor);
+	bool RenameKnownNames();
+	void StartNameSearch(int64_t now);
+	void UpdateNameScan();
 	void AddPendingThermostat(PendingThermostat &pending, const char *label);
 	Sensor *Find(const bt_addr_le_t &addr);
 	Sensor *FindFree();
@@ -123,6 +132,10 @@ private:
 
 	Sensor mSensors[kMaxSensors];
 	PendingThermostat mPending[kMaxPending];
+	/* Name search for thermostats added with the generated label. */
+	bool mNameSearch = false;
+	int64_t mNameSearchUntilMs = 0;
+	int64_t mNextNameSearchMs = 0;
 	bt_addr_le_t mIgnored[kMaxIgnored];
 	size_t mIgnoredCount = 0;
 	bool mFullWarningLogged = false;

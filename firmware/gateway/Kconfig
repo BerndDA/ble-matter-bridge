@@ -155,6 +155,17 @@ config GATEWAY_EQ3_NAME_WAIT_S
 	  in time, or the unit has the default name, the label is "Thermostat 3F02".
 	  0 adds thermostats at once with the default label.
 
+config GATEWAY_EQ3_NAME_RETRY_MIN
+	int "Look again for the names of thermostats on the generated label (min)"
+	default 10
+	range 0 1440
+	help
+	  A thermostat whose name wasn't heard when it was added keeps the label
+	  "Thermostat 3F02". Every this many minutes the background scan runs
+	  actively for GATEWAY_EQ3_NAME_WAIT_S; once the name is heard, the label
+	  changes to it and is stored. A label set by the controller is kept.
+	  0 turns the search off.
+
 config GATEWAY_BTHOME_IGNORE_MAX
 	int "Maximum number of ignored BTHome sensor addresses"
 	default 8
@@ -180,6 +191,14 @@ config GATEWAY_BTHOME_BATTERY_CRITICAL_PCT
 config GATEWAY_BTHOME_QUEUE_SIZE
 	int "Readings queued between the Bluetooth and Matter threads"
 	default 8
+
+config GATEWAY_UF2_BOOTLOADER_CMD
+	bool "Shell command to restart into the UF2 bootloader"
+	default y if BOARD_PROMICRO_NRF52840_NRF52840_UF2
+	help
+	  "gateway bootloader" sets GPREGRET to 0x57, which the Adafruit UF2
+	  bootloader takes as "stay in UF2 mode", and restarts. make flash
+	  BOARD=promicro-uf2 uses it, so no double tap on RST is needed.
 
 module = GATEWAY_SENSOR_SCANNER
 module-str = Gateway sensor scanner

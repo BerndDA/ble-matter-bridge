@@ -117,6 +117,15 @@ public:
 	 */
 	const char *GetNodeLabel(chip::EndpointId endpoint);
 
+	/**
+	 * @brief Get the bridged device on the specified endpoint.
+	 *
+	 * @param endpoint endpoint on which the bridged device is stored
+	 * @param[out] index the device's index, as used by the bridge storage
+	 * @return pointer to the bridged device, or nullptr if endpoint not found
+	 */
+	MatterBridgedDevice *GetDevice(chip::EndpointId endpoint, uint8_t &index);
+
 	static CHIP_ERROR HandleRead(uint16_t index, chip::ClusterId clusterId,
 				     const EmberAfAttributeMetadata *attributeMetadata, uint8_t *buffer,
 				     uint16_t maxReadLength);

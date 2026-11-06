@@ -9,6 +9,8 @@
 #include "bridge_storage_manager.h"
 #include "sensor_scanner.h"
 
+#include <app-common/zap-generated/ids/Attributes.h>
+#include <app-common/zap-generated/ids/Clusters.h>
 #include <platform/CHIPDeviceLayer.h>
 
 #include <zephyr/logging/log.h>
@@ -33,6 +35,7 @@ constexpr int64_t kUnreachableTimeoutMs = int64_t(CONFIG_GATEWAY_BTHOME_UNREACHA
 constexpr uint32_t kReachabilityCheckMs = 30 * 1000;
 constexpr int64_t kNameWaitMs = int64_t(CONFIG_GATEWAY_EQ3_NAME_WAIT_S) * 1000;
 constexpr uint32_t kPendingCheckMs = 1000;
+constexpr int64_t kNameRetryMs = int64_t(CONFIG_GATEWAY_EQ3_NAME_RETRY_MIN) * 60 * 1000;
 
 /* Readings travel from the Bluetooth RX thread to the Matter thread through this queue. */
 struct QueuedReading {
@@ -218,10 +221,95 @@ void BTHomeSensorManager::CheckReachability(intptr_t)
 {
 	const int64_t now = k_uptime_get();
 
-	for (auto &sensor : Instance().mSensors) {
+	BTHomeSensorManager &self = Instance();
+
+	for (auto &sensor : self.mSensors) {
 		if (sensor.mProvider) {
 			sensor.mProvider->CheckReachable(now, kUnreachableTimeoutMs);
 		}
+	}
+
+	/* A name heard in the meantime (e.g. while another thermostat was added) is used right away. */
+	const bool unnamed = self.RenameKnownNames();
+	if (unnamed && kNameRetryMs > 0 && kNameWaitMs > 0 && !self.mNameSearch && now >= self.mNextNameSearchMs) {
+		self.StartNameSearch(now);
+	}
+}
+
+bool BTHomeSensorManager::HasGeneratedLabel(const Sensor &sensor) const
+{
+	char generated[MatterBridgedDevice::kNodeLabelSize];
+	const char *label = BridgeManager::Instance().GetNodeLabel(sensor.mThermostatEndpoint);
+
+	FormatNodeLabel(sensor.mProvider->GetAddress(), true, generated, sizeof(generated));
+	return label && strncmp(label, generated, sizeof(generated)) == 0;
+}
+
+bool BTHomeSensorManager::RenameIfNamed(Sensor &sensor)
+{
+	const bt_addr_le_t &addr = sensor.mProvider->GetAddress();
+	char name[SENSOR_NAME_SIZE];
+	char label[MatterBridgedDevice::kNodeLabelSize];
+
+	if (!sensor_scanner_get_name(&addr, name, sizeof(name)) || !eq3_label_from_name(name, label, sizeof(label))) {
+		return false;
+	}
+
+	uint8_t index;
+	MatterBridgedDevice *device = BridgeManager::Instance().GetDevice(sensor.mThermostatEndpoint, index);
+	if (!device) {
+		return false;
+	}
+
+	/* Same path as a reading: updates the endpoint's NodeLabel and reports it to the controllers. */
+	sensor.mProvider->NotifyUpdateState(app::Clusters::BridgedDeviceBasicInformation::Id,
+					    app::Clusters::BridgedDeviceBasicInformation::Attributes::NodeLabel::Id, label,
+					    strlen(label));
+
+	char addrStr[BT_ADDR_LE_STR_LEN];
+	bt_addr_le_to_str(&addr, addrStr, sizeof(addrStr));
+	if (StoreDevice(device, addr, index) != CHIP_NO_ERROR) {
+		LOG_ERR("BTHome: %s renamed to \"%s\" but not stored", addrStr, label);
+	} else {
+		LOG_INF("BTHome: %s renamed to \"%s\"", addrStr, label);
+	}
+	return true;
+}
+
+bool BTHomeSensorManager::RenameKnownNames()
+{
+	bool unnamed = false;
+
+	for (auto &sensor : mSensors) {
+		if (sensor.mProvider && sensor.mThermostatEndpoint && HasGeneratedLabel(sensor) &&
+		    !RenameIfNamed(sensor)) {
+			unnamed = true;
+		}
+	}
+	return unnamed;
+}
+
+void BTHomeSensorManager::StartNameSearch(int64_t now)
+{
+	LOG_INF("BTHome: looking for thermostat names for %d s", CONFIG_GATEWAY_EQ3_NAME_WAIT_S);
+	mNameSearch = true;
+	mNameSearchUntilMs = now + kNameWaitMs;
+	UpdateNameScan();
+}
+
+void BTHomeSensorManager::UpdateNameScan()
+{
+	bool needed = mNameSearch;
+
+	for (const auto &pending : mPending) {
+		needed = needed || pending.mUsed;
+	}
+
+	sensor_scanner_set_active(needed);
+	if (!needed) {
+		k_timer_stop(&sPendingTimer);
+	} else if (k_timer_remaining_get(&sPendingTimer) == 0) {
+		k_timer_start(&sPendingTimer, K_MSEC(kPendingCheckMs), K_MSEC(kPendingCheckMs));
 	}
 }
 
@@ -278,8 +366,7 @@ bool BTHomeSensorManager::WaitForName(const bt_addr_le_t &addr, const bthome_rea
 	LOG_INF("BTHome: new thermostat %s, waiting up to %d s for its name", addrStr,
 		CONFIG_GATEWAY_EQ3_NAME_WAIT_S);
 
-	sensor_scanner_set_active(true);
-	k_timer_start(&sPendingTimer, K_MSEC(kPendingCheckMs), K_MSEC(kPendingCheckMs));
+	UpdateNameScan();
 	return true;
 }
 
@@ -292,7 +379,6 @@ void BTHomeSensorManager::CheckPending(intptr_t)
 {
 	BTHomeSensorManager &self = Instance();
 	const int64_t now = k_uptime_get();
-	bool waiting = false;
 
 	for (auto &pending : self.mPending) {
 		if (!pending.mUsed) {
@@ -311,15 +397,21 @@ void BTHomeSensorManager::CheckPending(intptr_t)
 					haveName ? "not renamed" : "name not heard");
 			}
 			self.AddPendingThermostat(pending, renamed ? label : nullptr);
-		} else {
-			waiting = true;
 		}
 	}
 
-	if (!waiting) {
-		k_timer_stop(&sPendingTimer);
-		sensor_scanner_set_active(false);
+	if (self.mNameSearch) {
+		const bool unnamed = self.RenameKnownNames();
+		if (!unnamed || now >= self.mNameSearchUntilMs) {
+			self.mNameSearch = false;
+			self.mNextNameSearchMs = now + kNameRetryMs;
+			if (unnamed) {
+				LOG_INF("BTHome: thermostat name not heard, next try in %d min",
+					CONFIG_GATEWAY_EQ3_NAME_RETRY_MIN);
+			}
+		}
 	}
+	self.UpdateNameScan();
 }
 
 void BTHomeSensorManager::AddPendingThermostat(PendingThermostat &pending, const char *label)
