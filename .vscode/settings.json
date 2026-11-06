@@ -5,5 +5,6 @@
         "${workspaceFolder}/spike/matter-bridge-nrf52840"
     ],
     // tools/connectedhomeip and its ~20 nested submodules would each show up in Source Control
-    "git.detectSubmodules": false
+    "git.detectSubmodules": false,
+    "makefile.configureOnOpen": false
 }
