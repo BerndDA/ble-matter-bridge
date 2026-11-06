@@ -84,11 +84,18 @@ The targets set up the SDK themselves through `scripts/ncs-env.sh`. For `west` b
 
 ### Commissioning
 
-The firmware uses Matter's default test credentials:
-- QR code: `MT:06PS042C00KA0648G00`
-- Manual code: `34970112332`
+The Pro Micro uses Matter's default test credentials. The DK has its own, set in [boards/nrf52840dk_nrf52840.conf](firmware/gateway/boards/nrf52840dk_nrf52840.conf), so both gateways can be in the same home:
 
-Run `matter onboardingcodes ble` in the shell to print them. Apple Home shows an "Uncertified Accessory" warning; choose **Add Anyway**. To factory-reset the gateway, hold **Button 1** on the DK for about 6 seconds.
+| | QR code | Manual code |
+| --- | --- | --- |
+| Pro Micro | `MT:06PS042C00KA0648G00` | `34970112332` |
+| DK | `MT:06PS0CEK010O0648G00` | `34970212338` |
+
+Run `matter onboardingcodes ble` in the shell to print them. Apple Home shows an "Uncertified Accessory" warning; choose **Add Anyway**. To factory-reset the gateway, hold **Button 1** on the DK for about 6 seconds, or run `matter device factoryreset` in the shell.
+
+After a change to the DK's identity, build it from scratch (`west build -p always`, or delete the build folder). An incremental build keeps the old factory data. Then flash with `make flash-erase`.
+
+**Removing and adding again.** iOS adds the gateway to two Matter fabrics: the Home app's and its own. Removing it in the Home app only removes the first one. The gateway then stays commissioned and doesn't advertise, so it can't be added again. Also remove it under **Settings → General → Matter Accessories** on the iPhone. With its last fabric gone, the gateway erases itself and restarts, ready to be added again. A factory reset does the same.
 
 ### Pro Micro nRF52840
 
@@ -105,7 +112,7 @@ The Pro Micro (also sold as nice!nano clone or "SuperMini") is a second option n
 | Full erase | `make flash-erase` | not possible over UF2; use the factory reset | `make flash-erase BOARD=promicro` |
 | RAM (reserved at build time) | 213 KB | 218 KB (USB stack) | 218 KB |
 | Shell | UART through the J-Link | USB CDC on the board's own USB port | same |
-| Factory reset | hold Button 1 for 6 s | optional button between P1.06 and GND, held for 6 s, or `matter factoryreset` in the shell | same |
+| Factory reset | hold Button 1 for 6 s | optional button between P1.06 and GND, held for 6 s, or `matter device factoryreset` in the shell | same |
 | Status LED | LED1 | the LED on P0.15 | same |
 | 32 kHz clock | crystal | internal RC oscillator, because many clones have no crystal | same |
 
@@ -118,7 +125,7 @@ make flash BOARD=promicro-uf2   # builds gateway.uf2 and copies it to the drive;
 make term BOARD=promicro-uf2    # shell over the Pro Micro's USB port
 ```
 
-`scripts/make-uf2.py` merges the app and the Matter factory data into one `gateway.uf2`. The settings live in an area the bootloader never writes, so they survive every flash. That's also why `flash-erase` doesn't work here. To start from scratch, use `matter factoryreset` or the button instead.
+`scripts/make-uf2.py` merges the app and the Matter factory data into one `gateway.uf2`. The settings live in an area the bootloader never writes, so they survive every flash. That's also why `flash-erase` doesn't work here. To start from scratch, use `matter device factoryreset` or the button instead.
 
 Not tested on hardware yet: that the bootloader starts the app at 0x1000 when there's no SoftDevice. According to the bootloader's source it should. If it doesn't, the board still shows up as a drive after a double tap, so nothing is lost.
 
@@ -133,7 +140,7 @@ To go back to UF2 afterwards, flash the board's UF2 bootloader hex over SWD agai
 
 The build folders end in `-promicro` or `-promicro-uf2`. `make measure` only finds the DK's port.
 
-Both boards use the same Matter test credentials. Commission one gateway at a time.
+The DK and the Pro Micro have different Matter credentials (see [Commissioning](#commissioning)), so both can be commissioned at once.
 
 ## Notes on the nRF52840 port
 
