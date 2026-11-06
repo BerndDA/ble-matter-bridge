@@ -7,6 +7,7 @@
  *   gateway ignored                    list ignored addresses
  *   gateway pause <seconds>            pause the background scan (0 resumes), for measurements
  *   gateway target <addr> <celsius>    set an eQ-3 thermostat's target (4.5 = off, 30 = on), for tests
+ *   gateway bootloader                 restart into the UF2 bootloader (Pro Micro UF2 builds only)
  *
  * <addr> is written as printed by `gateway seen`, e.g. A4:C1:38:0C:54:AA.
  * [type] is "public" (default) or "random".
@@ -19,6 +20,11 @@
 #include <zephyr/bluetooth/addr.h>
 #include <zephyr/kernel.h>
 #include <zephyr/shell/shell.h>
+#include <zephyr/sys/reboot.h>
+
+#if defined(CONFIG_GATEWAY_UF2_BOOTLOADER_CMD)
+#include <hal/nrf_power.h>
+#endif
 
 #include "bthome_sensor_manager.h"
 #include "eq3_client.h"
@@ -278,6 +284,21 @@ int CmdTarget(const struct shell *sh, size_t, char **argv)
 	return 0;
 }
 
+#if defined(CONFIG_GATEWAY_UF2_BOOTLOADER_CMD)
+/* Adafruit_nRF52_Bootloader: GPREGRET value that keeps it in UF2 mode after a reset (DFU_MAGIC_UF2_RESET). */
+constexpr uint32_t kUf2BootloaderMagic = 0x57;
+
+int CmdBootloader(const struct shell *sh, size_t, char **)
+{
+	shell_print(sh, "Restarting into the UF2 bootloader");
+	/* Let the line reach the host before USB goes away. */
+	k_sleep(K_MSEC(200));
+	nrf_power_gpregret_set(NRF_POWER, 0, kUf2BootloaderMagic);
+	sys_reboot(SYS_REBOOT_COLD);
+	return 0;
+}
+#endif
+
 } /* namespace */
 
 SHELL_STATIC_SUBCMD_SET_CREATE(
@@ -296,6 +317,9 @@ SHELL_STATIC_SUBCMD_SET_CREATE(
 		      "Pause the background scan (for measurements); 0 resumes.\n"
 		      "Usage: pause <seconds>",
 		      CmdPause, 2, 0),
+	SHELL_COND_CMD_ARG(IS_ENABLED(CONFIG_GATEWAY_UF2_BOOTLOADER_CMD), bootloader, NULL,
+			   "Restart into the UF2 bootloader, which then shows up as a USB drive.",
+			   COND_CODE_1(CONFIG_GATEWAY_UF2_BOOTLOADER_CMD, (CmdBootloader), (NULL)), 1, 0),
 	SHELL_CMD_ARG(target, NULL,
 		      "Set an eQ-3 thermostat's target temperature (4.5 = off, 30 = on).\n"
 		      "Usage: target <addr> <celsius>",

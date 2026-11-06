@@ -40,7 +40,9 @@ It takes up to 10 BTHome devices (for example 4 sensors and 4 thermostats) and 2
 
 The gateway scans continuously for BTHome v2 advertisements (25 % duty cycle, so Thread keeps most of the radio time). A device heard for the first time is added automatically and stored, so it keeps its endpoints across reboots:
 - **Sensors** (pvvx firmware) become a Temperature Sensor and a Humidity Sensor endpoint, named `Sensor XXXX` after the last two bytes of the address.
-- **eQ-3 thermostats** (eq3-custom-fw) become one Thermostat endpoint, `Thermostat XXXX`, with room temperature, target, Off/Heat, valve opening and battery. A target or mode set from Matter is sent to the thermostat over one short GATT connection (7–14 s until it has it) and also switches it to manual mode. The thermostat's pairing PIN must be off.
+- **eQ-3 thermostats** (eq3-custom-fw) become one Thermostat endpoint with room temperature, target, Off/Heat, valve opening and battery. A target or mode set from Matter is sent to the thermostat over one short GATT connection (7–14 s until it has it) and also switches it to manual mode. The thermostat's pairing PIN must be off.
+
+  A thermostat renamed with eq3-custom-fw airs `eQ3-<name>`, and is named `<name>` in Matter (`eQ3-Dusche` becomes `Dusche`). The name comes in scan responses, so a new thermostat is added only after up to 20 s of active scanning (`CONFIG_GATEWAY_EQ3_NAME_WAIT_S`). Without a name it gets `Thermostat XXXX`. The gateway then keeps looking every 10 minutes (`CONFIG_GATEWAY_EQ3_NAME_RETRY_MIN`, 20 s active scan each), renames it once the name is heard, and stores the new label. Far thermostats may never be heard well enough for that.
 
 Each device shows manufacturer, model and its Bluetooth address as serial number. A device is reported unreachable after 10 minutes without packets; its last values stay readable, so Apple Home shows "No Response". After a restart, a sensor reports no value until its first packet arrives.
 
@@ -55,6 +57,7 @@ Shell commands (in nRF Terminal, 115200 baud):
 | `gateway ignored` | List ignored addresses |
 | `gateway target <addr> <celsius>` | Set an eQ-3 thermostat's target, for tests (4.5 = off) |
 | `gateway pause <s>` | Pause the background scan for measurements (`0` resumes) |
+| `gateway bootloader` | Pro Micro (UF2) only: restart into the UF2 bootloader |
 
 `make term` opens the shell from a terminal.
 
@@ -119,12 +122,14 @@ The Pro Micro (also sold as nice!nano clone or "SuperMini") is a second option n
 
 There is no OTA on either Pro Micro variant: without external flash there is no room for a second image slot.
 
-**UF2 (`BOARD=promicro-uf2`).** Short RST to GND twice quickly. The board then shows up as a USB drive. Then run:
+**UF2 (`BOARD=promicro-uf2`).** Run:
 
 ```sh
 make flash BOARD=promicro-uf2   # builds gateway.uf2 and copies it to the drive; the board restarts
 make term BOARD=promicro-uf2    # shell over the Pro Micro's USB port
 ```
+
+If the board isn't on its UF2 drive yet, `make flash` sends `gateway bootloader` over the USB shell first (`make term` must be closed) and waits for the drive. The very first time, or with firmware older than that command, short RST to GND twice quickly instead; the board then shows up as a USB drive.
 
 `scripts/make-uf2.py` merges the app and the Matter factory data into one `gateway.uf2`. The settings live in an area the bootloader never writes, so they survive every flash. That's also why `flash-erase` doesn't work here. To start from scratch, use `matter device factoryreset` or the button instead.
 

@@ -37,8 +37,9 @@ endif
 # Flash a build folder: west flash, or for promicro-uf2 the .uf2 copied to the bootloader drive
 # promicro-uf2: each board gets its own Matter identity, derived from its chip ID (see scripts/make-uf2.py)
 ifdef UF2
+# Without a UF2 drive, make-uf2.py first sends `gateway bootloader` on PORT.
 flash_dir = $(NCS) python3 scripts/make-uf2.py -o $(1)/gateway.uf2 --deploy --identity $(1) \
-	$(1)/gateway/zephyr/zephyr.hex
+	$(if $(PORT),--port $(PORT)) $(1)/gateway/zephyr/zephyr.hex
 else
 flash_dir = $(NCS) west flash -d $(1) $(2)
 endif

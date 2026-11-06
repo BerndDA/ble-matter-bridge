@@ -16,6 +16,8 @@ All other values come from the build's own generator command, so they follow Kco
 Usage:
   make-uf2.py -o gateway.uf2 [--deploy] app.hex factory_data.hex
   make-uf2.py -o gateway.uf2 --deploy --identity BUILD_DIR app.hex
+  make-uf2.py -o gateway.uf2 --deploy --identity BUILD_DIR --port /dev/cu.usbmodem31101 app.hex
+              (no UF2 drive: sends `gateway bootloader` on that port first)
   make-uf2.py --identity BUILD_DIR --chip-id 54932B32846202D7 --show   (codes of a board, no drive needed)
 """
 import argparse
@@ -29,6 +31,7 @@ import shlex
 import subprocess
 import sys
 import tempfile
+import time
 
 from intelhex import IntelHex
 
@@ -37,14 +40,51 @@ FAMILY_NRF52840 = "0xADA52840"
 UF2_WRITABLE = (0x1000, 0xEA000)
 UF2CONV = os.path.join(os.environ.get("ZEPHYR_BASE", ""), "scripts", "build", "uf2conv.py")
 
+ZEPHYR_USB_VID = 0x2FE3  # CONFIG_CDC_ACM_SERIAL_VID
 SERIAL_PREFIX = "BLEGW-"
 # Matter core spec 5.1.7.1: setup codes 1..99999998, minus these
 INVALID_PASSCODES = {0, 11111111, 22222222, 33333333, 44444444, 55555555, 66666666, 77777777, 88888888,
                      99999999, 12345678, 87654321}
 
 
-def find_drive():
-    drives = [os.path.dirname(p) for p in glob.glob("/Volumes/*/INFO_UF2.TXT")]
+def uf2_drives():
+    return [os.path.dirname(p) for p in glob.glob("/Volumes/*/INFO_UF2.TXT")]
+
+
+def enter_bootloader(port, timeout_s=20):
+    """Sends `gateway bootloader` over the gateway's USB shell and waits for the UF2 drive."""
+    import serial  # pyserial, part of the NCS toolchain
+    from serial.tools import list_ports
+
+    # Only talk to the gateway (Zephyr's CDC ACM vendor ID), not to some other usbmodem device.
+    vids = {p.device: p.vid for p in list_ports.comports()}
+    if vids.get(port) != ZEPHYR_USB_VID:
+        sys.exit("make-uf2: no UF2 drive, and %s is not the gateway's USB shell. Double-tap RST to GND." % port)
+
+    print("make-uf2: no UF2 drive; restarting the gateway on %s into the bootloader" % port)
+    try:
+        with serial.Serial(port, 115200, timeout=0.2, write_timeout=2) as s:
+            s.write(b"\ngateway bootloader\n")
+            s.flush()
+            time.sleep(0.5)
+    except (serial.SerialException, OSError) as e:
+        sys.exit("make-uf2: cannot use %s (%s). Close `make term`, or double-tap RST to GND." % (port, e))
+
+    deadline = time.time() + timeout_s
+    while time.time() < deadline:
+        if uf2_drives():
+            time.sleep(1)  # let macOS finish mounting
+            return
+        time.sleep(0.5)
+    sys.exit("make-uf2: no UF2 drive after %d s. Is the firmware older than `gateway bootloader`? "
+             "Double-tap RST to GND instead." % timeout_s)
+
+
+def find_drive(port=None):
+    drives = uf2_drives()
+    if not drives and port and os.path.exists(port):
+        enter_bootloader(port)
+        drives = uf2_drives()
     if len(drives) != 1:
         sys.exit(
             "make-uf2: found %d UF2 drives%s. Double-tap RST to GND on the Pro Micro so it shows up as a drive."
@@ -159,9 +199,10 @@ def main():
                     help="generate per-board factory data with the generator command of this sysbuild folder")
     ap.add_argument("--chip-id", help="chip ID (16 hex digits) instead of reading it from the UF2 drive")
     ap.add_argument("--show", action="store_true", help="with --identity: only print the board's codes")
+    ap.add_argument("--port", help="gateway shell port: without a UF2 drive, restart the gateway into the bootloader")
     args = ap.parse_args()
 
-    drive = find_drive() if args.deploy or (args.identity and not args.chip_id) else None
+    drive = find_drive(args.port) if args.deploy or (args.identity and not args.chip_id) else None
 
     hex_files = list(args.hex)
     if args.identity:
