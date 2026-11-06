@@ -50,7 +50,7 @@ private:
 	void SetMinMeasuredValue(int16_t value) { mMinMeasuredValue = value; }
 	void SetMaxMeasuredValue(int16_t value) { mMaxMeasuredValue = value; }
 
-	int16_t mMeasuredValue = 0;
+	int16_t mMeasuredValue = INT16_MIN; /* null until the first reading */
 	int16_t mMinMeasuredValue = CONFIG_BRIDGE_TEMPERATURE_SENSOR_MIN_MEASURED_VALUE;
 	int16_t mMaxMeasuredValue = CONFIG_BRIDGE_TEMPERATURE_SENSOR_MAX_MEASURED_VALUE;
 };

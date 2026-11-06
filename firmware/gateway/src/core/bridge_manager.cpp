@@ -385,8 +385,9 @@ CHIP_ERROR BridgeManager::HandleRead(uint16_t index, ClusterId clusterId,
 
 	auto *device = Instance().mDevicesMap[index].mDevice;
 
-	/* Handle reads for the generic information for all bridged devices. Provide a valid answer even if device state
-	 * is unreachable. */
+	/* All reads succeed even while the device is unreachable: they return the last known values, and the
+	 * Reachable attribute tells the controller they are stale. Failing them makes Apple Home show the
+	 * thermostat as "Not Supported" instead of "No Response". */
 	switch (clusterId) {
 	case Clusters::BridgedDeviceBasicInformation::Id:
 		return device->HandleReadBridgedDeviceBasicInformation(attributeMetadata->attributeId, buffer,
@@ -394,14 +395,10 @@ CHIP_ERROR BridgeManager::HandleRead(uint16_t index, ClusterId clusterId,
 	case Clusters::Identify::Id:
 		return device->HandleReadIdentify(attributeMetadata->attributeId, buffer, maxReadLength);
 	case Clusters::PowerSource::Id:
-		/* The last known battery state stays readable while the device is unreachable. */
 		return device->HandleReadPowerSource(attributeMetadata->attributeId, buffer, maxReadLength);
 	default:
 		break;
 	}
-
-	/* Verify if the device is reachable or we should return prematurely. */
-	VerifyOrReturnError(device->GetIsReachable(), CHIP_ERROR_INCORRECT_STATE);
 
 	return device->HandleRead(clusterId, attributeMetadata->attributeId, buffer, maxReadLength);
 }

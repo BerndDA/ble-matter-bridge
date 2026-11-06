@@ -50,7 +50,7 @@ private:
 	void SetMinMeasuredValue(int16_t value) { mMinMeasuredValue = value; }
 	void SetMaxMeasuredValue(int16_t value) { mMaxMeasuredValue = value; }
 
-	uint16_t mMeasuredValue = 0;
+	uint16_t mMeasuredValue = UINT16_MAX; /* null until the first reading */
 	uint16_t mMinMeasuredValue = CONFIG_BRIDGE_HUMIDITY_SENSOR_MIN_MEASURED_VALUE;
 	uint16_t mMaxMeasuredValue = CONFIG_BRIDGE_HUMIDITY_SENSOR_MAX_MEASURED_VALUE;
 };

@@ -42,7 +42,7 @@ The gateway scans continuously for BTHome v2 advertisements (25 % duty cycle, so
 - **Sensors** (pvvx firmware) become a Temperature Sensor and a Humidity Sensor endpoint, named `Sensor XXXX` after the last two bytes of the address.
 - **eQ-3 thermostats** (eq3-custom-fw) become one Thermostat endpoint, `Thermostat XXXX`, with room temperature, target, Off/Heat, valve opening and battery. A target or mode set from Matter is sent to the thermostat over one short GATT connection (7–14 s until it has it) and also switches it to manual mode. The thermostat's pairing PIN must be off.
 
-Each device shows manufacturer, model and its Bluetooth address as serial number. A device is reported unreachable after 10 minutes without packets.
+Each device shows manufacturer, model and its Bluetooth address as serial number. A device is reported unreachable after 10 minutes without packets; its last values stay readable, so Apple Home shows "No Response". After a restart, a sensor reports no value until its first packet arrives.
 
 Shell commands (in nRF Terminal, 115200 baud):
 
