@@ -96,8 +96,8 @@ void emberAfClusterInitCallback(EndpointId endpoint, ClusterId clusterId) {
   case app::Clusters::Thermostat::Id:
     emberAfThermostatClusterInitCallback(endpoint);
     break;
-  case app::Clusters::WiFiNetworkDiagnostics::Id:
-    emberAfWiFiNetworkDiagnosticsClusterInitCallback(endpoint);
+  case app::Clusters::ThreadNetworkDiagnostics::Id:
+    emberAfThreadNetworkDiagnosticsClusterInitCallback(endpoint);
     break;
   default:
     // Unrecognized cluster ID
@@ -221,7 +221,7 @@ emberAfThermostatClusterInitCallback(EndpointId endpoint) {
   (void)endpoint;
 }
 void __attribute__((weak))
-emberAfWiFiNetworkDiagnosticsClusterInitCallback(EndpointId endpoint) {
+emberAfThreadNetworkDiagnosticsClusterInitCallback(EndpointId endpoint) {
   // To prevent warning
   (void)endpoint;
 }

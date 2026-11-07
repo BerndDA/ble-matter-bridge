@@ -62,12 +62,6 @@ void MatterSoftwareDiagnosticsClusterInitCallback(chip::EndpointId endpointId);
 void MatterSoftwareDiagnosticsClusterShutdownCallback(
     chip::EndpointId endpointId);
 
-void MatterWiFiNetworkDiagnosticsClusterInitCallback(
-    chip::EndpointId endpointId);
-
-void MatterWiFiNetworkDiagnosticsClusterShutdownCallback(
-    chip::EndpointId endpointId);
-
 void MatterAdministratorCommissioningClusterInitCallback(
     chip::EndpointId endpointId);
 

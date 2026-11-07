@@ -33,7 +33,7 @@ void MatterNetworkCommissioningPluginServerInitCallback();
 void MatterDiagnosticLogsPluginServerInitCallback();
 void MatterGeneralDiagnosticsPluginServerInitCallback();
 void MatterSoftwareDiagnosticsPluginServerInitCallback();
-void MatterWiFiNetworkDiagnosticsPluginServerInitCallback();
+void MatterThreadNetworkDiagnosticsPluginServerInitCallback();
 void MatterBridgedDeviceBasicInformationPluginServerInitCallback();
 void MatterSwitchPluginServerInitCallback();
 void MatterAdministratorCommissioningPluginServerInitCallback();
@@ -58,7 +58,7 @@ void MatterRelativeHumidityMeasurementPluginServerInitCallback();
   MatterDiagnosticLogsPluginServerInitCallback();                              \
   MatterGeneralDiagnosticsPluginServerInitCallback();                          \
   MatterSoftwareDiagnosticsPluginServerInitCallback();                         \
-  MatterWiFiNetworkDiagnosticsPluginServerInitCallback();                      \
+  MatterThreadNetworkDiagnosticsPluginServerInitCallback();                    \
   MatterBridgedDeviceBasicInformationPluginServerInitCallback();               \
   MatterSwitchPluginServerInitCallback();                                      \
   MatterAdministratorCommissioningPluginServerInitCallback();                  \

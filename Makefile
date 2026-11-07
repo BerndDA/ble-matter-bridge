@@ -97,6 +97,8 @@ test: ## Run the host unit tests (BTHome parser)
 
 zap: ## Regenerate the Matter data model code after editing bridge.zap
 	@$(NCS) cd $(APP) && west zap-generate -z src/default_zap/bridge.zap
+	@# Enabled clusters decide which server sources CMake adds; make the next build re-run CMake.
+	@touch $(APP)/CMakeLists.txt
 
 term: ## Open the gateway shell (115200 baud; Ctrl+] quits). Close nRF Terminal first
 	@test -n "$(PORT)" || { echo "No serial port found for BOARD=$(BOARD); set PORT=/dev/cu.usbmodem..."; exit 1; }
