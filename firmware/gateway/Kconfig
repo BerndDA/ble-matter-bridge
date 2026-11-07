@@ -210,6 +210,41 @@ config GATEWAY_IDENTITY_FROM_CHIP_ID
 	  same codes. Certificates, vendor and product still come from the
 	  factory data.
 
+config GATEWAY_NET_LOG
+	bool "Log output over UDP for a receiver on the home network"
+	default y if LOG_MODE_MINIMAL
+	depends on OPENTHREAD && PRINTK
+	help
+	  A receiver (scripts/netlog.py, make netlog) finds the gateway through its
+	  Matter mDNS records and subscribes on UDP; the gateway then sends what the
+	  console shows (info and above, or debug on request) until the subscription
+	  lapses. Nothing is sent without a subscriber. See src/netlog/net_log.h.
+	  On by default in debug builds; release builds have no log output.
+
+if GATEWAY_NET_LOG
+
+config GATEWAY_NET_LOG_PORT
+	int "UDP port"
+	default 5140
+
+config GATEWAY_NET_LOG_LEASE_S
+	int "Subscription lifetime (s); the receiver renews it"
+	default 60
+
+config GATEWAY_NET_LOG_BUFFER
+	int "Buffer for output not yet sent (bytes)"
+	default 2048
+
+config GATEWAY_NET_LOG_DATAGRAM
+	int "Largest datagram payload (bytes)"
+	default 480
+	help
+	  One datagram per 100 ms at most, so this also caps the log traffic on
+	  Thread (480 bytes: about 4.8 KB/s). Larger datagrams need more 6LoWPAN
+	  fragments and OpenThread message buffers.
+
+endif # GATEWAY_NET_LOG
+
 config GATEWAY_UF2_BOOTLOADER_CMD
 	bool "Shell command to restart into the UF2 bootloader"
 	default y if BOARD_PROMICRO_NRF52840_NRF52840_UF2

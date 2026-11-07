@@ -10,6 +10,9 @@
 #ifdef CONFIG_GATEWAY_IDENTITY_FROM_CHIP_ID
 #include "identity/chip_id_identity.h"
 #endif
+#ifdef CONFIG_GATEWAY_NET_LOG
+#include "netlog/net_log.h"
+#endif
 
 #ifdef CONFIG_BRIDGED_DEVICE_BT
 #include "ble_bridged_device_factory.h"
@@ -233,6 +236,9 @@ CHIP_ERROR AppTask::Init()
 
 		/* Bridge BTHome sensors heard by the scanner. */
 		Gateway::BTHomeSensorManager::Instance().Start();
+#ifdef CONFIG_GATEWAY_NET_LOG
+		Gateway::NetLog::Init();
+#endif
 		return CHIP_NO_ERROR;
 	} }));
 #ifdef CONFIG_BRIDGE_SMART_PLUG_SUPPORT

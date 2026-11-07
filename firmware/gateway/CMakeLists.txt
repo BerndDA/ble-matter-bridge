@@ -74,5 +74,6 @@ target_sources(app PRIVATE
 )
 
 target_sources_ifdef(CONFIG_GATEWAY_IDENTITY_FROM_CHIP_ID app PRIVATE src/identity/chip_id_identity.cpp)
+target_sources_ifdef(CONFIG_GATEWAY_NET_LOG app PRIVATE src/netlog/net_log.cpp)
 
 ncs_configure_data_model()

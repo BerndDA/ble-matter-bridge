@@ -63,7 +63,7 @@ CHIP_TOOL := $(CHIP)/out/darwin-arm64-chip-tool/chip-tool
 CHIP_ZAP     := $(CHIP)/.environment/zap-arm64
 CHIP_ZAP_VER := v2026.05.12-nightly
 
-.PHONY: help build flash flash-erase release diag diag-flash test zap term measure summary identity chip-tool clean
+.PHONY: help build flash flash-erase release diag diag-flash test zap term measure summary identity netlog chip-tool clean
 
 help: ## List the targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  make %-12s %s\n", $$1, $$2}'
@@ -105,6 +105,9 @@ term: ## Open the gateway shell (115200 baud; Ctrl+] quits). Close nRF Terminal 
 identity: ## Show the board's Matter setup code (from the UF2 drive, the J-Link, or CHIP_ID=<16 hex digits>)
 	@$(NCS) python3 scripts/make-uf2.py --identity $(BUILD) \
 		$(if $(CHIP_ID),--chip-id $(CHIP_ID),$(if $(UF2),,--jlink))
+
+netlog: ## Show a gateway's log over the network (debug builds); SERIAL=<part>, DEBUG=1, HOST=<IPv6>
+	@python3 scripts/netlog.py $(if $(SERIAL),--serial $(SERIAL)) $(if $(DEBUG),--debug) $(if $(HOST),--host $(HOST))
 
 chip-tool: ## Build chip-tool (Matter controller for the Mac) from tools/connectedhomeip; first run takes long
 	@git submodule update --init tools/connectedhomeip

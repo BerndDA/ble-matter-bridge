@@ -66,6 +66,16 @@ Settings in [Kconfig](firmware/gateway/Kconfig): `GATEWAY_BTHOME_AUTO_ADD`, `GAT
 
 Parser tests run on the Mac: `make test`.
 
+**Log over the network.** Debug builds send their console output over UDP to a receiver anywhere on the home network, so a gateway on a USB charger can be watched without a cable:
+
+```sh
+make netlog                 # finds the gateway, prints its log until Ctrl-C
+make netlog SERIAL=9E749B   # with several gateways: pick one by serial number
+make netlog DEBUG=1         # include debug lines (much more Thread traffic)
+```
+
+[scripts/netlog.py](scripts/netlog.py) finds the gateway through its Matter mDNS records (`dns-sd`, the same path Apple Home uses) and subscribes on UDP port 5140. Nothing needs configuring on either side, and the Mac's address may change. The gateway sends only while a receiver renews its subscription (every 5 s; it lapses after 60 s), info lines and above by default, at most one datagram of 480 bytes per 100 ms. After a gateway restart the log resumes with the next renewal, so the first few seconds of the boot log only show on the console. An idle gateway logs very little. Release builds have no log output. Details: [src/netlog/net_log.h](firmware/gateway/src/netlog/net_log.h).
+
 For RAM, stack and radio measurements: `make diag-flash`, then `make measure` (add `THERMOSTAT=<addr>` to send thermostat commands) and `make summary`. See [doc/measurements.md](doc/measurements.md).
 
 ## Ready-made firmware
