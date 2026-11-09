@@ -292,7 +292,8 @@ function render(s) {
 
   // ---- heard ----
   const bridged = new Set(s.devices.map(d => d.id));
-  $('seen').innerHTML = s.seen.sort((a, b) => a.agoS - b.agoS).map(x => {
+  // By ID, so rows don't jump around on every refresh.
+  $('seen').innerHTML = s.seen.sort((a, b) => a.id.localeCompare(b.id)).map(x => {
     const dev = s.devices.find(d => d.id === x.id && !d.lamp);
     return `<tr><td><span class="mono">${x.id}</span></td>
       <td>${dev ? esc(dev.name) : bridged.has(x.id) ? '' : '<span class="muted">not bridged</span>'}</td>
