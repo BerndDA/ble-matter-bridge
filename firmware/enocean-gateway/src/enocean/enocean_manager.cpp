@@ -174,6 +174,13 @@ CHIP_ERROR EnOceanManager::Start()
 CHIP_ERROR EnOceanManager::Restore(const EnOceanUserData &data, uint16_t deviceType, const char *uniqueID,
 				   const char *nodeLabel, uint8_t index, uint16_t endpointId)
 {
+	/* Another app's entries (the BLE gateway's, after switching a board without erasing) can have
+	 * the same size; skip what can't be an EnOcean actuator. */
+	const bool valid = (data.mKind == EnOceanUserData::kEltako || data.mKind == EnOceanUserData::kD2_01) &&
+			   data.mOffset < 128 && data.mContact <= 2 &&
+			   (data.mContact == 0 || (data.mKind == EnOceanUserData::kEltako && data.mStepOffset < 128));
+	VerifyOrReturnError(valid, CHIP_ERROR_INVALID_ARGUMENT,
+			    LOG_WRN("EnOcean: stored device %08X is not a valid actuator, skipped", data.mId));
 	VerifyOrReturnError(!Find(data.mId, data.mContact), CHIP_ERROR_DUPLICATE_KEY_ID);
 
 	Device *device = FindFree();
