@@ -65,13 +65,13 @@
   .bulb.unknown { background: transparent; border: 1px dashed var(--line); color: var(--faint); }
   .dev .name { font-weight: 600; }
   .dev .meta { color: var(--muted); font-size: 12px; }
-  .dev .right { margin-left: auto; text-align: right; }
+  .dev .right { margin-left: auto; text-align: right; flex: none; display: grid; gap: 4px; justify-items: end; }
   .lamps { display: flex; gap: 8px; flex-wrap: wrap; }
   .lamp { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; padding: 3px 10px; border-radius: 99px;
           background: var(--idle-bg); color: var(--muted); }
   .lamp.on { background: var(--on-bg); color: var(--on); }
   .lamp .dot { background: currentColor; }
-  .power { font-size: 20px; font-weight: 650; }
+  .power { font-size: 20px; font-weight: 650; white-space: nowrap; }
 
   /* tiles */
   .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
