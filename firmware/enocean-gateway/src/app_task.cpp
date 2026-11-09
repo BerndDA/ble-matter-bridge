@@ -80,9 +80,7 @@ CHIP_ERROR AppTask::RestoreBridgedDevices()
 		if (!Nrf::BridgeStorageManager::Instance().LoadBridgedDevice(device, indexes[i])) {
 			return CHIP_ERROR_NOT_FOUND;
 		}
-		/* Devices stored by the first version have no contact and step offset (zero: whole actuator). */
-		if (device.mUserDataSize != sizeof(userData) &&
-		    device.mUserDataSize != Gateway::EnOceanUserData::kV1Size) {
+		if (device.mUserDataSize != sizeof(userData)) {
 			LOG_WRN("Stored device %u is not an EnOcean actuator, skipped", indexes[i]);
 			continue;
 		}

@@ -32,9 +32,6 @@ namespace Gateway
 struct EnOceanUserData {
 	enum Kind : uint8_t { kEltako = 1, kD2_01 = 2 };
 
-	/* Size of the first version (without mContact, mStepOffset); still loaded. */
-	static constexpr size_t kV1Size = 6;
-
 	uint32_t mId;
 	uint8_t mKind;
 	uint8_t mOffset;     /* sender ID = TCM base ID + offset; Eltako: central on/off */
