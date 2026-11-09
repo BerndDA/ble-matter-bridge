@@ -37,8 +37,8 @@ Open tasks and decisions are in [TODO.md](TODO.md).
 
 | Image | Flash | RAM (reserved at build time) |
 | --- | --- | --- |
-| Gateway app (`make build`) | 866 KB of 975 KB (89 %) | 213 KB of 256 KB (81 %) |
-| Gateway app (`make release`) | 783 KB of 975 KB (80 %) | 212 KB of 256 KB (81 %) |
+| Gateway app (`make build`) | 897 KB of 975 KB (92 %) | 229 KB of 256 KB (87 %) |
+| Gateway app (`make release`) | 810 KB of 975 KB (83 %) | 225 KB of 256 KB (86 %) |
 | MCUboot | 24 KB of 28 KB (85 %) | 18 KB |
 
 It takes up to 10 BTHome devices (for example 4 sensors and 4 thermostats) and 20 Matter endpoints.
@@ -155,6 +155,7 @@ From a terminal:
 make flash          # build and flash; keeps commissioning and stored devices
 make flash-erase    # full erase: the gateway must be commissioned again
 make release        # release configuration (prj_release.conf) into build-release
+make release-flash  # build the release configuration and flash it
 ```
 
 Add `BOARD=promicro` or `BOARD=promicro-uf2` to any target for the Pro Micro nRF52840. See [Pro Micro nRF52840](#pro-micro-nrf52840). Add `APP=enocean-gateway` for the EnOcean gateway (DK or Pro Micro). `make test` runs the host tests of the chosen app.

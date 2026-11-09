@@ -75,7 +75,7 @@ CHIP_TOOL := $(CHIP)/out/darwin-arm64-chip-tool/chip-tool
 CHIP_ZAP     := $(CHIP)/.environment/zap-arm64
 CHIP_ZAP_VER := v2026.05.12-nightly
 
-.PHONY: help build flash flash-erase release diag diag-flash test zap term measure summary identity netlog chip-tool clean
+.PHONY: help build flash flash-erase release release-flash diag diag-flash test zap term measure summary identity netlog chip-tool clean
 
 help: ## List the targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  make %-12s %s\n", $$1, $$2}'
@@ -97,6 +97,9 @@ endif
 
 release: ## Build with prj_release.conf (no logging, watchdog, reset on fatal error) into build-release
 	@$(NCS) west build -b $(TARGET) --sysbuild -d $(RELEASE) $(APP_DIR) -- -DFILE_SUFFIX=release
+
+release-flash: release ## Build the release firmware and flash it; keeps commissioning and stored devices
+	@$(call flash_dir,$(RELEASE))
 
 diag: ## Build the diagnostics firmware (stack, heap, thread statistics) into build-diag
 	@$(NCS) west build -b $(TARGET) --sysbuild -d $(DIAG) $(APP_DIR) -- -DEXTRA_CONF_FILE=diag.conf

@@ -12,6 +12,7 @@ Run from the repository root. `APP=enocean-gateway` is required on every call; w
 | `make flash APP=enocean-gateway` | Build and flash; keeps commissioning and bridged actuators |
 | `make flash-erase APP=enocean-gateway` | Build and flash with a full erase. Use it the first time on a board that ran the BLE gateway; the gateway must be commissioned again |
 | `make release APP=enocean-gateway` | Release build (no logging, watchdog, reset on fatal error) into `build-release` |
+| `make release-flash APP=enocean-gateway` | Build the release firmware and flash it; keeps commissioning and bridged actuators |
 | `make test APP=enocean-gateway` | ESP3/EEP parser tests on the Mac |
 | `make term` | Open the gateway shell (115200 baud, Ctrl+] quits); close nRF Terminal first |
 | `make identity APP=enocean-gateway` | Show the board's Matter setup code |

@@ -304,6 +304,7 @@ function render(s) {
 
   // ---- scan ----
   const bridged = new Set(s.sensors.map(x => x.address));
+  const names = Object.fromEntries(s.sensors.map(x => [x.address, x.name]));
   $('scan').innerHTML =
     `<div class="kv"><span>Background scan</span><span>${s.scan.running ? (s.scan.active ? pill('running, active', 'ok') : pill('running', 'ok')) : pill('paused', 'warn')}</span></div>` +
     `<div class="kv"><span>Devices heard</span><span>${s.seen.length}</span></div>` +
@@ -320,7 +321,7 @@ function render(s) {
     if (x.battery != null) v.push(`bat ${x.battery} %`);
     else if (x.voltage != null) v.push(`${x.voltage} mV`);
     return `<tr><td><span class="mono">${esc(x.address)}</span></td>
-      <td>${esc(x.name)}${bridged.has(x.address) ? '' : ' <span class="muted">not bridged</span>'}</td>
+      <td>${esc(names[x.address] || x.name)}${bridged.has(x.address) ? '' : ' <span class="muted">not bridged</span>'}</td>
       <td>${v.join(' · ')}</td>
       <td class="num">${signal(bars(x.rssi, BLE_STEPS), true)} ${x.rssi} dBm</td>
       <td class="num">${x.packets} <span class="muted">(${x.measurements})</span></td>
