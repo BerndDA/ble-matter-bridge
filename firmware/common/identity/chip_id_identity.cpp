@@ -5,6 +5,12 @@
 #include "chip_id_identity.h"
 
 #include <lib/support/CodeUtils.h>
+#ifdef CONFIG_CHIP_CRYPTO_PSA_MIGRATE_DAC_PRIV_KEY
+#include <crypto/PSAKeyAllocator.h>
+#include <platform/nrfconnect/FactoryDataParser.h>
+
+#include <psa/crypto.h>
+#endif
 
 #include <hal/nrf_ficr.h>
 #include <zephyr/kernel.h>
@@ -54,10 +60,47 @@ uint32_t BigEndian(const uint8_t *p, size_t n)
 	}
 	return v;
 }
+#ifdef CONFIG_CHIP_CRYPTO_PSA_MIGRATE_DAC_PRIV_KEY
+/*
+ * The SDK moves the DAC private key from the factory data into the PSA key storage at the first
+ * start and zeroes it in the factory data. If a key is already stored, it keeps that one and
+ * zeroes the new key. But a key in the factory data means the factory data was just written (a
+ * flash or a UF2 copy), and the stored key may belong to other factory data: the BLE and EnOcean
+ * gateways have different DACs, and a board switched over UF2 keeps the settings area, key storage
+ * included. The device then signs with the wrong key; Apple Home calls it uncertified and fails
+ * the pairing at the CSR. So a key in the factory data replaces the stored one.
+ */
+void ReplaceStoredDacKeyIfNew()
+{
+	DeviceLayer::InternalFlashFactoryData flash;
+	FactoryData factoryData = {};
+	uint8_t *data = nullptr;
+	size_t size = 0;
+	static const uint8_t kZeroKey[32] = {};
+
+	if (flash.GetFactoryDataPartition(data, size) != CHIP_NO_ERROR ||
+	    !ParseFactoryData(data, static_cast<uint16_t>(size), &factoryData)) {
+		return;
+	}
+	if (factoryData.dac_priv_key.len != sizeof(kZeroKey) ||
+	    memcmp(factoryData.dac_priv_key.data, kZeroKey, sizeof(kZeroKey)) == 0) {
+		/* Already moved to the key storage: the normal start. */
+		return;
+	}
+	psa_crypto_init();
+	if (psa_destroy_key(to_underlying(Crypto::KeyIdBase::DACPrivKey)) == PSA_SUCCESS) {
+		LOG_INF("New factory data: replacing the stored DAC private key");
+	}
+}
+#endif
+
 } /* namespace */
 
 CHIP_ERROR ChipIdFactoryDataProvider::Init()
 {
+#ifdef CONFIG_CHIP_CRYPTO_PSA_MIGRATE_DAC_PRIV_KEY
+	ReplaceStoredDacKeyIfNew();
+#endif
 	ReturnErrorOnFailure(Base::Init());
 
 	snprintf(mChipId, sizeof(mChipId), "%08X%08X", unsigned(nrf_ficr_deviceid_get(NRF_FICR, 1)),
