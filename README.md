@@ -121,7 +121,7 @@ enocean add 05017E43 d2 9 plug Kuechenradio
 | `enocean remove <id>` | Remove it (and its lamps) from Matter |
 | `enocean switch <id> on\|off [1\|2]` | Switch it, or one of its lamps, from the shell |
 
-Debug builds have a read-only status page: `http://[<gateway IPv6>]/` from the home network (OpenThread's TCP, so OpenThread is built from source; the page is gzip-compressed into the firmware).
+Debug builds have a read-only status page: `http://<Thread extended MAC>.local/` (the hostname Matter registers through the border router) or `http://[<gateway IPv6>]/` from the home network (OpenThread's TCP, so OpenThread is built from source; the page is gzip-compressed into the firmware).
 
 All `make` and shell commands of the EnOcean gateway are collected in [firmware/enocean-gateway/COMMANDS.md](firmware/enocean-gateway/COMMANDS.md).
 

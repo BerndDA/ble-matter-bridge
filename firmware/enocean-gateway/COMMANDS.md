@@ -23,7 +23,7 @@ Only the nRF52840 DK is supported so far, so leave `BOARD` at its default. The `
 
 ## Status page
 
-Debug builds serve a read-only status page on port 80 of the gateway's Thread address: open `http://[<IPv6>]/` in a browser on the home network, for example `http://[2001:a61:309f:23fc:10ea:7103:5950:8777]/`. The address is in the page's "Thread network" section, and `make netlog` finds the gateway too. The page shows the actuators with their lamps and power, Thread, Matter heap, uptime, firmware, Matter controllers, the TCM and the senders heard; it refreshes every 5 s. `/api/status` returns the same as JSON.
+Debug builds serve a read-only status page on port 80. Open `http://<hostname>.local/` in a browser on the home network; this gateway is `http://C291CAB626D64FB6.local/`. The hostname is the gateway's Thread extended MAC address, which Matter registers with the border router (SRP) and the border router announces via mDNS. It stays the same across restarts and changes when the gateway joins a Thread network anew (factory reset). Find it with `dns-sd -B _matter._tcp` and `dns-sd -L <instance> _matter._tcp` (the "can be reached at" line). `http://[<IPv6>]/` works too; the address is in the page's "Thread network" section. The page shows the actuators with their lamps and power, Thread, Matter heap, uptime, firmware, Matter controllers, the TCM and the senders heard; it refreshes every 5 s. `/api/status` returns the same as JSON.
 
 ## In the gateway shell: `enocean`
 
