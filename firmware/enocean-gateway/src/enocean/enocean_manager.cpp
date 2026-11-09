@@ -156,7 +156,7 @@ CHIP_ERROR EnOceanManager::Start()
 		return CHIP_ERROR_INTERNAL;
 	}
 	/* D2-01 actuators can be asked for their state once the base ID is known. */
-	k_timer_start(&mQueryTimer, K_SECONDS(2), K_SECONDS(5));
+	k_timer_start(&mQueryTimer, K_SECONDS(2), K_NO_WAIT);
 	return CHIP_NO_ERROR;
 }
 
@@ -233,6 +233,9 @@ CHIP_ERROR EnOceanManager::Add(const EnOceanUserData &data, uint16_t deviceType,
 	LOG_INF("EnOcean: added %08X \"%s\" on endpoint %u", data.mId, label, device->mEndpoint);
 	if (data.mKind == EnOceanUserData::kD2_01) {
 		SendQuery(data);
+		/* Ask again if it doesn't answer. */
+		mQueryIntervalS = kQueryIntervalMinS;
+		k_timer_start(&mQueryTimer, K_SECONDS(mQueryIntervalS), K_NO_WAIT);
 	}
 	return CHIP_NO_ERROR;
 }
@@ -309,18 +312,31 @@ void EnOceanManager::QueryTimerHandler(k_timer *)
 void EnOceanManager::QueryStates(intptr_t)
 {
 	EnOceanManager &self = Instance();
+	size_t pending = 0;
 
-	if (self.mStatesQueried || tcm_base_id() == 0) {
+	if (tcm_base_id() == 0) {
+		/* The TCM hasn't told its base ID yet: nothing can be sent. */
+		k_timer_start(&self.mQueryTimer, K_SECONDS(5), K_NO_WAIT);
 		return;
 	}
-	self.mStatesQueried = true;
-	k_timer_stop(&self.mQueryTimer);
 
+	/* Ask every D2-01 actuator whose state is still unknown (no answer yet, e.g. out of range or
+	 * unplugged) until it answers; the interval doubles up to kQueryIntervalMaxS. */
 	for (auto &device : self.mDevices) {
-		if (device.mProvider && device.mProvider->GetData().mKind == EnOceanUserData::kD2_01) {
+		if (device.mProvider && device.mProvider->GetData().mKind == EnOceanUserData::kD2_01 &&
+		    !device.mProvider->IsStateKnown()) {
 			self.SendQuery(device.mProvider->GetData());
+			pending++;
 		}
 	}
+	if (pending == 0) {
+		self.mQueryIntervalS = kQueryIntervalMinS;
+		return;
+	}
+	LOG_DBG("EnOcean: asked %u actuator(s) for their state, next in %u s", unsigned(pending),
+		self.mQueryIntervalS);
+	k_timer_start(&self.mQueryTimer, K_SECONDS(self.mQueryIntervalS), K_NO_WAIT);
+	self.mQueryIntervalS = MIN(self.mQueryIntervalS * 2, kQueryIntervalMaxS);
 }
 
 /* Runs in the TCM receive thread: copy the telegram and let the Matter thread handle it. */
@@ -442,7 +458,12 @@ void EnOceanManager::UpdateSeen(const Telegram &t, int64_t now)
 	slot->mLen = MIN(t.mLen, sizeof(slot->mPayload));
 	memcpy(slot->mPayload, t.mPayload, slot->mLen);
 	slot->mDbm = t.mDbm;
+	/* Status bits 3..0: how many repeaters the telegram passed (0..2); 0xF = "do not repeat", so direct */
+	slot->mRepeaters = (t.mStatus & 0x0F) == 0x0F ? 0 : (t.mStatus & 0x0F);
 	slot->mCount++;
+	if (slot->mRepeaters) {
+		slot->mRepeatedCount++;
+	}
 	slot->mLastSeenMs = now;
 }
 

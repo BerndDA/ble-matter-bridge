@@ -73,10 +73,18 @@ int CmdSeen(const struct shell *sh, size_t, char **)
 		for (uint8_t j = 0; j < seen[i].mLen; j++) {
 			snprintk(&data[2 * j], sizeof(data) - 2 * j, "%02X", seen[i].mPayload[j]);
 		}
-		shell_print(sh, "%08X  %02X %-8s  %4d dBm  %5u telegrams  %us ago", seen[i].mId, seen[i].mRorg, data,
-			    seen[i].mDbm, seen[i].mCount, SecondsAgo(seen[i].mLastSeenMs));
+		char hops[8] = "direct";
+
+		if (seen[i].mRepeaters) {
+			snprintk(hops, sizeof(hops), "%u hop%s", seen[i].mRepeaters, seen[i].mRepeaters > 1 ? "s" : "");
+		}
+		shell_print(sh, "%08X  %02X %-8s  %4d dBm  %-7s  %5u telegrams (%u direct, %u repeated)  %us ago",
+			    seen[i].mId, seen[i].mRorg, data, seen[i].mDbm, hops, seen[i].mCount, seen[i].mCount - seen[i].mRepeatedCount, seen[i].mRepeatedCount,
+			    SecondsAgo(seen[i].mLastSeenMs));
 	}
-	shell_print(sh, "%u sender(s) heard (own telegrams through repeaters are left out)", unsigned(n));
+	shell_print(sh, "%u sender(s) heard; dBm and hops of the last telegram (own telegrams through repeaters "
+			"are left out)",
+		    unsigned(n));
 	return 0;
 }
 

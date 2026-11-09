@@ -26,7 +26,7 @@ Only the nRF52840 DK is supported so far, so leave `BOARD` at its default. The `
 | Command | Purpose |
 | --- | --- |
 | `enocean info` | TCM version, base ID, receive and send counters |
-| `enocean seen` | Senders heard since start: ID, RORG, payload, dBm, count, last seen |
+| `enocean seen` | Senders heard since start: ID, RORG, payload, dBm and hops (direct or through repeaters) of the last telegram, counts, last seen |
 | `enocean list` | Bridged actuators: ID, endpoint, kind, light/plug, sender offset, state, power (D2-01) |
 | `enocean add <id> eltako\|d2 <offset> light\|plug <name...>` | Bridge an actuator that is taught in to base ID + offset; it keeps its endpoint across restarts |
 | `enocean remove <id>` | Remove an actuator from Matter |

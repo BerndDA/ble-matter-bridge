@@ -81,7 +81,9 @@ public:
 		uint8_t mLen;
 		uint8_t mPayload[4]; /* first bytes of the last telegram */
 		int8_t mDbm;
+		uint8_t mRepeaters; /* repeater count of the last telegram (0 = direct) */
 		uint32_t mCount;
+		uint32_t mRepeatedCount; /* telegrams that came through a repeater */
 		int64_t mLastSeenMs;
 	};
 
@@ -148,8 +150,12 @@ private:
 
 	Device mDevices[kMaxDevices];
 	SeenInfo mSeen[kMaxSeen] = {};
+	/* Status queries to D2-01 actuators that haven't answered: every 30 s, doubling up to 10 min */
+	static constexpr uint32_t kQueryIntervalMinS = 30;
+	static constexpr uint32_t kQueryIntervalMaxS = 600;
+
 	k_timer mQueryTimer;
-	bool mStatesQueried = false;
+	uint32_t mQueryIntervalS = kQueryIntervalMinS;
 };
 
 } /* namespace Gateway */

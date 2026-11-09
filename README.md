@@ -123,7 +123,7 @@ enocean add 05017E43 d2 9 plug Kuechenradio
 All `make` and shell commands of the EnOcean gateway are collected in [firmware/enocean-gateway/COMMANDS.md](firmware/enocean-gateway/COMMANDS.md).
 
 - **Eltako** actuators are switched like by a rocker (one RPS press from the sender ID: `0x30` on, `0x10` off) and confirm with F6 telegrams. Their state is unknown after a restart until they switch once.
-- **D2-01** actuators get addressed commands (set output, status query). The gateway asks for their state at start.
+- **D2-01** actuators get addressed commands (set output, status query). The gateway asks for their state at start and repeats the query until they answer (30 s, doubling up to 10 min).
 - **D2-01** endpoints are also Electrical Sensors: the Electrical Power Measurement cluster reports the load's active power, which the gateway asks for after every status answer (and which actuators set up for it report on their own). Apple Home shows it in the accessory's details, as do Home Assistant and other Matter controllers; `enocean list` shows it too.
 - A command from Matter sets the endpoint at once; the actuator's confirmation corrects it if it didn't switch. Telegrams from the gateway's own sender IDs (base ID .. base ID + 127) that come back through repeaters are ignored.
 - Never change the TCM's base ID: every actuator taught in to it would have to be taught in again.
