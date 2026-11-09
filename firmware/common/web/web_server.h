@@ -4,8 +4,8 @@
  * The gateway listens on TCP port CONFIG_GATEWAY_WEB_PORT of its Thread addresses; the border
  * router routes the home network to them, so a browser opens http://[<global IPv6>]/.
  *
- *   GET /             the page: built into the firmware gzip-compressed, sent as is with
- *                     "Content-Encoding: gzip"
+ *   GET /             the app's src/web/index.html: gzip-compressed into the firmware at build
+ *                     time (common.cmake), sent as is with "Content-Encoding: gzip"
  *   GET /api/status   JSON from the app's writer, which runs on the Matter thread
  *
  * One request per connection (Connection: close), CONFIG_GATEWAY_WEB_CONNECTIONS at a time; a
@@ -25,7 +25,7 @@ namespace Gateway::Web
  * Matter thread (stack lock held), without the OpenThread lock. */
 using StatusWriter = size_t (*)(char *buf, size_t size);
 
-/* Starts listening. Call once Thread is initialized. @p page is the gzip-compressed page. */
-void Init(const uint8_t *page, size_t pageSize, StatusWriter writer);
+/* Starts listening. Call once Thread is initialized. */
+void Init(StatusWriter writer);
 
 } /* namespace Gateway::Web */

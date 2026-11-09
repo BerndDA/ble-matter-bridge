@@ -51,10 +51,13 @@ struct Connection {
 	otLinkedBuffer mBodyBuffer;
 };
 
+/* The app's src/web/index.html, gzip-compressed at build time (common.cmake) */
+const uint8_t sPage[] = {
+#include "index.html.gz.inc"
+};
+
 Connection sConnections[CONFIG_GATEWAY_WEB_CONNECTIONS];
 otTcpListener sListener;
-const uint8_t *sPage;
-size_t sPageSize;
 StatusWriter sWriter;
 
 /* One JSON buffer: a second status request while it is in use gets 503 (the page retries). */
@@ -156,7 +159,7 @@ void Respond(Connection &c)
 
 	if (strcmp(path, "/") == 0 || strcmp(path, "/index.html") == 0) {
 		Send(c, "200 OK", "text/html; charset=utf-8", "Content-Encoding: gzip\r\nCache-Control: no-cache\r\n",
-		     sPage, sPageSize);
+		     sPage, sizeof(sPage));
 	} else if (strcmp(path, "/api/status") == 0) {
 		c.mState = State::kBuilding;
 		const intptr_t arg = intptr_t((size_t(c.mGeneration) << 8) | size_t(&c - sConnections));
@@ -295,15 +298,13 @@ void Sweep(k_work *)
 }
 } /* namespace */
 
-void Init(const uint8_t *page, size_t pageSize, StatusWriter writer)
+void Init(StatusWriter writer)
 {
 	static bool sStarted;
 
 	if (sStarted) {
 		return;
 	}
-	sPage = page;
-	sPageSize = pageSize;
 	sWriter = writer;
 	k_work_init_delayable(&sSweepWork, Sweep);
 

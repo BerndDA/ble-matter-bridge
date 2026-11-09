@@ -13,6 +13,10 @@
 #ifdef CONFIG_GATEWAY_NET_LOG
 #include "netlog/net_log.h"
 #endif
+#ifdef CONFIG_GATEWAY_WEB
+#include "web/web_server.h"
+#include "web_status.h"
+#endif
 
 #ifdef CONFIG_BRIDGED_DEVICE_BT
 #include "ble_bridged_device_factory.h"
@@ -238,6 +242,9 @@ CHIP_ERROR AppTask::Init()
 		Gateway::BTHomeSensorManager::Instance().Start();
 #ifdef CONFIG_GATEWAY_NET_LOG
 		Gateway::NetLog::Init();
+#endif
+#ifdef CONFIG_GATEWAY_WEB
+		Gateway::Web::Init(Gateway::WriteWebStatus);
 #endif
 		return CHIP_NO_ERROR;
 	} }));

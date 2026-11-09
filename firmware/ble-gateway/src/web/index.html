@@ -1,0 +1,350 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BLE Matter Gateway</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232563eb' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M14 14.8V5a2 2 0 0 0-4 0v9.8a4 4 0 1 0 4 0z'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #f3f4f6; --card: #fff; --text: #16181d; --muted: #6b7280; --faint: #9ca3af; --line: #e5e7eb;
+    --track: #eceef1; --ok: #15803d; --ok-bg: #dcfce7; --warn: #b45309; --warn-bg: #fef3c7;
+    --bad: #b91c1c; --bad-bg: #fee2e2; --accent: #2563eb; --idle-bg: #e5e7eb; --on: #ca8a04; --on-bg: #fef9c3;
+    --shadow: 0 1px 2px rgba(16, 24, 40, .05);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #111316; --card: #1b1e23; --text: #e8eaed; --muted: #9aa1ab; --faint: #6b7280; --line: #2b3038;
+      --track: #2b3038; --ok: #4ade80; --ok-bg: #14532d55; --warn: #fbbf24; --warn-bg: #78350f55;
+      --bad: #f87171; --bad-bg: #7f1d1d55; --accent: #7aa7ff; --idle-bg: #2b3038; --on: #facc15; --on-bg: #713f1255;
+      --shadow: none;
+    }
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 1400px; margin: 0 auto; padding: 16px; display: grid; gap: 14px; }
+  code, .mono { font: 13px ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .muted { color: var(--muted); } .ok { color: var(--ok); } .warn { color: var(--warn); } .bad { color: var(--bad); }
+
+  /* header */
+  .top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-size: 18px; font-weight: 650; }
+  .brand svg { width: 26px; height: 26px; color: var(--accent); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; padding: 3px 10px;
+          border-radius: 99px; background: var(--card); border: 1px solid var(--line); color: var(--muted); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); }
+  .chip.ok { color: var(--text); } .chip.ok .dot { background: var(--ok); box-shadow: 0 0 0 3px var(--ok-bg); }
+  .chip.bad { color: var(--bad); } .chip.bad .dot { background: var(--bad); }
+
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px;
+          box-shadow: var(--shadow); min-width: 0; }
+  h2 { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted);
+       margin: 0 0 12px; }
+  .sub { color: var(--muted); font-size: 13px; margin-top: 4px; }
+  .kv { display: flex; justify-content: space-between; gap: 16px; font-size: 14px; padding: 3px 0; }
+  .kv span:first-child { color: var(--muted); }
+  .pill { display: inline-block; font-size: 12px; padding: 1px 8px; border-radius: 99px; font-weight: 500; white-space: nowrap; }
+  .pill.ok { background: var(--ok-bg); } .pill.warn { background: var(--warn-bg); } .pill.bad { background: var(--bad-bg); }
+  .pill.idle { background: var(--idle-bg); color: var(--muted); }
+  .pill.on { background: var(--on-bg); color: var(--on); }
+  .bar { height: 6px; border-radius: 99px; background: var(--track); overflow: hidden; margin-top: 5px; }
+  .bar > i { display: block; height: 100%; border-radius: 99px; background: var(--ok); transition: width .4s; }
+  .bar.warn > i { background: var(--warn); } .bar.bad > i { background: var(--bad); }
+
+  /* actuators */
+  .devs { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+  .dev { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; display: grid; gap: 8px; }
+  .dev .head { display: flex; align-items: center; gap: 12px; }
+  .bulb { width: 42px; height: 42px; flex: none; border-radius: 12px; display: grid; place-items: center;
+          background: var(--idle-bg); color: var(--muted); transition: background .3s, color .3s; }
+  .bulb svg { width: 22px; height: 22px; }
+  .bulb.on { background: var(--on-bg); color: var(--on); }
+  .bulb.unknown { background: transparent; border: 1px dashed var(--line); color: var(--faint); }
+  .dev .name { font-weight: 600; }
+  .dev .meta { color: var(--muted); font-size: 12px; }
+  .dev .right { margin-left: auto; text-align: right; flex: none; display: grid; gap: 4px; justify-items: end; }
+  .lamps { display: flex; gap: 8px; flex-wrap: wrap; }
+  .lamp { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; padding: 3px 10px; border-radius: 99px;
+          background: var(--idle-bg); color: var(--muted); }
+  .lamp.on { background: var(--on-bg); color: var(--on); }
+  .lamp .dot { background: currentColor; }
+  .power { font-size: 20px; font-weight: 650; white-space: nowrap; }
+  .big { font-size: 26px; font-weight: 700; white-space: nowrap; }
+  .vals { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 14px; }
+  .vals span b { font-weight: 600; }
+  .bulb.cold { background: #dbeafe; color: #2563eb; } .bulb.warm { background: var(--warn-bg); color: var(--warn); }
+  @media (prefers-color-scheme: dark) { .bulb.cold { background: #1e3a8a55; color: #93c5fd; } }
+
+  /* tiles */
+  .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+  .tile .val { font-size: 22px; font-weight: 650; display: flex; align-items: center; gap: 10px; }
+  .signal { display: inline-flex; align-items: flex-end; gap: 2px; height: 16px; }
+  .signal i { width: 4px; border-radius: 1px; background: var(--track); }
+  .signal i:nth-child(1) { height: 25%; } .signal i:nth-child(2) { height: 50%; }
+  .signal i:nth-child(3) { height: 75%; } .signal i:nth-child(4) { height: 100%; }
+  .signal i.on { background: currentColor; }
+  .signal.small { height: 12px; } .signal.small i { width: 3px; }
+
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start; }
+  .ctrl { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 0;
+          border-top: 1px solid var(--line); }
+  .ctrl:first-child { border-top: 0; }
+  .ctrl b { font-weight: 550; }
+  details.more { margin-top: 10px; }
+  details.more summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+  .addr { overflow-wrap: anywhere; }
+
+  /* heard */
+  .scroll { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th { text-align: left; font-weight: 500; color: var(--muted); font-size: 12px; padding: 0 10px 8px 0; white-space: nowrap; }
+  td { padding: 7px 10px 7px 0; border-top: 1px solid var(--line); white-space: nowrap; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .hint { color: var(--faint); font-size: 12px; margin-top: 8px; }
+
+  @media (max-width: 1000px) { .tiles { grid-template-columns: 1fr 1fr; } .cols { grid-template-columns: 1fr; } }
+  @media (max-width: 520px) { .tiles { grid-template-columns: 1fr; } .devs { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<main>
+  <header class="top">
+    <div class="brand">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14.8V5a2 2 0 0 0-4 0v9.8a4 4 0 1 0 4 0z"/><path d="M12 9v7"/></svg>
+      BLE Matter Gateway
+    </div>
+    <div class="chips">
+      <span class="chip" id="chipConn"><span class="dot"></span><span>connecting…</span></span>
+      <span class="chip" id="chipThread">–</span>
+      <span class="chip" id="chipFw">–</span>
+    </div>
+  </header>
+
+  <section class="card">
+    <h2>Sensors and thermostats</h2>
+    <div class="devs" id="devs"><div class="muted">–</div></div>
+  </section>
+
+  <div class="tiles">
+    <section class="card tile">
+      <h2>Thread</h2>
+      <div class="val"><span class="signal" id="sigBars"><i></i><i></i><i></i><i></i></span><span id="rssi">–</span></div>
+      <div class="sub" id="threadSub">–</div>
+    </section>
+    <section class="card tile">
+      <h2>Matter heap</h2>
+      <div class="val" id="heap">–</div>
+      <div class="bar" id="heapBar"><i style="width:0"></i></div>
+      <div class="sub" id="heapSub">–</div>
+    </section>
+    <section class="card tile">
+      <h2>Uptime</h2>
+      <div class="val" id="uptime">–</div>
+      <div class="sub" id="resetSub">–</div>
+    </section>
+    <section class="card tile">
+      <h2>Firmware</h2>
+      <div class="val" id="fw">–</div>
+      <div class="sub" id="fwSub">–</div>
+    </section>
+  </div>
+
+  <div class="cols">
+    <section class="card">
+      <h2>Matter controllers</h2>
+      <div id="fabrics"><div class="muted">–</div></div>
+      <details class="more">
+        <summary>Thread network · <span id="netName">–</span></summary>
+        <div id="netInfo" style="margin-top:8px"></div>
+      </details>
+    </section>
+    <section class="card">
+      <h2>Bluetooth scan</h2>
+      <div id="scan"><div class="muted">–</div></div>
+    </section>
+  </div>
+
+  <section class="card">
+    <h2>Heard since start</h2>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Address</th><th>Name</th><th>Values</th><th class="num">Signal</th>
+          <th class="num">Packets</th><th class="num">Longest gap</th><th class="num">Last heard</th></tr></thead>
+        <tbody id="seen"></tbody>
+      </table>
+    </div>
+    <div class="hint">BTHome sensors and eQ-3 thermostats. Packets: received (distinct measurements). Longest gap: between two packets since start.</div>
+  </section>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const txt = (id, v) => { $(id).textContent = v; };
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const kb = b => (b / 1024).toFixed(1) + ' KB';
+
+const THERMO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14.8V5a2 2 0 0 0-4 0v9.8a4 4 0 1 0 4 0z"/><path d="M12 9v7"/></svg>';
+const VALVE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9h16M4 15h16"/><path d="M8 9v6M16 9v6"/><path d="M12 4v5"/></svg>';
+const VENDORS = { 0x1349: 'Apple Home', 0x1384: 'Apple Keychain', 0x6006: 'Google Home', 0x1217: 'Amazon Alexa',
+                  0x110A: 'SmartThings', 0x134B: 'Home Assistant', 0xFFF1: 'Test vendor' };
+
+function duration(s) {
+  const d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60);
+  return d ? `${d}d ${h}h` : h ? `${h}h ${m}m` : m ? `${m} min` : `${s} s`;
+}
+function ago(s) { return s == null ? 'never' : s < 60 ? `${s} s ago` : duration(s) + ' ago'; }
+function bars(dbm, steps) { return dbm == null ? 0 : dbm >= steps[0] ? 4 : dbm >= steps[1] ? 3 : dbm >= steps[2] ? 2 : 1; }
+function signal(n, small) {
+  const c = n >= 3 ? 'ok' : n === 2 ? 'warn' : n ? 'bad' : 'muted';
+  return `<span class="signal ${small ? 'small' : ''} ${c}">` + [0, 1, 2, 3].map(i => `<i class="${i < n ? 'on' : ''}"></i>`).join('') + '</span>';
+}
+const BLE_STEPS = [-70, -80, -90];    // BLE RSSI
+const THREAD_STEPS = [-65, -75, -85]; // Thread parent RSSI
+
+const MODES = ['auto', 'manual', 'holiday'];
+const c1 = v => (v / 100).toFixed(1);  // 0.01 units -> one decimal
+
+function pill(text, cls) { return `<span class="pill ${cls}">${esc(text)}</span>`; }
+
+function renderSensors(sensors, seen) {
+  const byAddr = Object.fromEntries(seen.map(x => [x.address, x]));
+  const cards = sensors.map(s => {
+    const x = byAddr[s.address] || {};
+    const t = x.thermostat;
+    const temp = s.temperature != null ? `${c1(s.temperature)} °C` : '–';
+    const icon = s.thermostat ? VALVE : THERMO;
+    const tone = s.temperature == null ? 'unknown' : s.temperature < 1800 ? 'cold' : s.temperature > 2400 ? 'warm' : 'on';
+    const vals = [];
+    if (s.thermostat && t) {
+      if (t.target != null) vals.push(`<span>target <b>${t.target <= 450 ? 'off' : t.target >= 3000 ? 'on' : c1(t.target) + ' °C'}</b></span>`);
+      if (t.valve != null) vals.push(`<span>valve <b>${t.valve} %</b></span>`);
+      if (t.mode != null) vals.push(`<span>${esc(MODES[t.mode] || 'mode ' + t.mode)}</span>`);
+    }
+    if (s.humidity != null) vals.push(`<span>humidity <b>${c1(s.humidity)} %</b></span>`);
+    if (s.lastSeenS != null) vals.push(`<span>battery <b class="${s.battery < 15 ? 'bad' : s.battery < 30 ? 'warn' : ''}">${s.battery} %</b></span>`);
+    const flags = [];
+    if (t) {
+      if (t.boost) flags.push(pill('boost', 'warn'));
+      if (t.windowOpen) flags.push(pill('window open', 'warn'));
+      if (t.locked) flags.push(pill('locked', 'idle'));
+      if (t.batteryLow) flags.push(pill('battery low', 'bad'));
+    }
+    // Right after a start every sensor is "not reachable" until its first packet.
+    if (s.lastSeenS == null) flags.push(pill('not heard since start', 'idle'));
+    else if (!s.reachable) flags.push(pill('not reachable', 'bad'));
+    return `<div class="dev"><div class="head">
+        <div class="bulb ${tone === 'unknown' ? 'unknown' : tone}">${icon}</div>
+        <div><div class="name">${esc(s.name || s.address)}</div>
+          <div class="meta"><span class="mono">${esc(s.address)}</span> · ${s.thermostat ? 'eQ-3 thermostat' : 'BTHome sensor'} · endpoint ${s.endpoint}${s.humidityEndpoint ? ', ' + s.humidityEndpoint : ''}</div></div>
+        <div class="right"><div class="big">${temp}</div></div></div>
+      <div class="vals">${vals.join('')}</div>
+      ${flags.length ? '<div class="lamps">' + flags.join(' ') + '</div>' : ''}
+      <div class="meta">${x.rssi != null ? `${signal(bars(x.rssi, BLE_STEPS), true)} ${x.rssi} dBm · ` : ''}heard ${ago(s.lastSeenS)}</div>
+    </div>`;
+  });
+  $('devs').innerHTML = cards.join('') || '<div class="muted">No sensors bridged yet. BTHome sensors are added when they are heard (auto-add).</div>';
+}
+
+function render(s) {
+  const y = s.system, t = s.thread, m = s.matter;
+
+  // ---- header ----
+  const attached = ['child', 'router', 'leader'].includes(t.role);
+  $('chipConn').className = 'chip ' + (attached ? 'ok' : 'bad');
+  $('chipConn').lastElementChild.textContent = attached ? 'online' : 'Thread ' + t.role;
+  txt('chipThread', `Thread ${t.role}`);
+  txt('chipFw', `v${y.version}`);
+
+  renderSensors(s.sensors, s.seen);
+
+  // ---- tiles ----
+  // A child shows its parent link, a router its strongest neighbor link.
+  const rssi = t.parentRssi != null ? t.parentRssi : t.bestRssi;
+  const n = rssi != null ? bars(rssi, THREAD_STEPS) : 0;
+  $('sigBars').outerHTML = signal(n).replace('class="signal', 'id="sigBars" class="signal');
+  txt('rssi', rssi != null ? `${rssi} dBm` : attached ? t.role : 'detached');
+  txt('threadSub', `${t.role} · channel ${t.channel} · ` + (t.parentRssi != null
+    ? `parent ${t.parentRloc16}, LQI ${t.parentLqi}`
+    : `${t.neighbors} neighbor${t.neighbors === 1 ? '' : 's'}` + (t.bestRssi != null ? ', strongest link' : '')));
+
+  const heapTotal = y.heapFree + y.heapUsed;
+  const used = heapTotal ? y.heapUsed / heapTotal : 0, high = heapTotal ? Math.max(y.heapHigh, y.heapUsed) / heapTotal : 0;
+  const hcls = high > .9 ? 'bad' : high > .75 ? 'warn' : '';
+  $('heap').className = 'val ' + hcls;
+  txt('heap', kb(y.heapFree) + ' free');
+  $('heapBar').className = 'bar ' + hcls;
+  $('heapBar').firstElementChild.style.width = Math.round(used * 100) + '%';
+  txt('heapSub', `of ${kb(heapTotal)}` + (y.heapHigh ? ` · peak use ${kb(y.heapHigh)}` : ''));
+
+  txt('uptime', duration(y.uptimeS));
+  const rcls = /watchdog|brown/.test(y.bootReason) ? 'bad' : '';
+  $('resetSub').innerHTML = `last start: <span class="${rcls}">${esc(y.bootReason)}</span> · ${y.rebootCount} starts`;
+
+  txt('fw', y.version);
+  txt('fwSub', `nRF Connect SDK ${y.sdk} · ${y.board}`);
+
+  // ---- matter ----
+  $('fabrics').innerHTML = (m.fabrics.length
+    ? m.fabrics.map(f => `<div class="ctrl"><div><b>${esc(VENDORS[f.vendorId] || 'Vendor 0x' + f.vendorId.toString(16).toUpperCase())}</b>` +
+        `${f.label ? ' <span class="muted">· ' + esc(f.label) + '</span>' : ''}</div>` +
+        `<span class="mono muted" title="Node ID of the gateway in this fabric">${f.nodeId.replace(/^0+(?=.{8})/, '')}</span></div>`).join('')
+    : '<div class="muted">Not commissioned yet.</div>') +
+    `<div class="sub">${m.subscriptions} subscription${m.subscriptions === 1 ? '' : 's'} · ` +
+    (m.commissioningOpen ? '<span class="ok">pairing window open</span>' : 'pairing window closed') + '</div>';
+
+  txt('netName', t.network);
+  $('netInfo').innerHTML =
+    `<div class="kv"><span>Role</span><span>${esc(t.role)} · RLOC16 <span class="mono">${t.rloc16}</span></span></div>` +
+    `<div class="kv"><span>Channel · PAN ID</span><span>${t.channel} · <span class="mono">${t.panId}</span></span></div>` +
+    `<div class="kv"><span>Partition</span><span class="mono">${t.partition}</span></div>` +
+    t.addresses.map(a => `<div class="kv"><span>Address</span><span class="mono addr">${esc(a)}</span></div>`).join('');
+
+  // ---- scan ----
+  const bridged = new Set(s.sensors.map(x => x.address));
+  $('scan').innerHTML =
+    `<div class="kv"><span>Background scan</span><span>${s.scan.running ? (s.scan.active ? pill('running, active', 'ok') : pill('running', 'ok')) : pill('paused', 'warn')}</span></div>` +
+    `<div class="kv"><span>Devices heard</span><span>${s.seen.length}</span></div>` +
+    `<div class="kv"><span>Bridged</span><span>${s.sensors.length} (${s.sensors.filter(x => x.thermostat).length} thermostats)</span></div>` +
+    `<div class="kv"><span>Not reachable</span><span>${s.sensors.filter(x => !x.reachable).length}</span></div>`;
+
+  // ---- heard ----
+  $('seen').innerHTML = s.seen.sort((a, b) => a.agoS - b.agoS).map(x => {
+    const v = [];
+    if (x.temperature != null) v.push(`${c1(x.temperature)} °C`);
+    if (x.humidity != null) v.push(`${c1(x.humidity)} %`);
+    if (x.thermostat && x.thermostat.target != null) v.push(`target ${c1(x.thermostat.target)} °C`);
+    if (x.thermostat && x.thermostat.valve != null) v.push(`valve ${x.thermostat.valve} %`);
+    if (x.battery != null) v.push(`bat ${x.battery} %`);
+    else if (x.voltage != null) v.push(`${x.voltage} mV`);
+    return `<tr><td><span class="mono">${esc(x.address)}</span></td>
+      <td>${esc(x.name)}${bridged.has(x.address) ? '' : ' <span class="muted">not bridged</span>'}</td>
+      <td>${v.join(' · ')}</td>
+      <td class="num">${signal(bars(x.rssi, BLE_STEPS), true)} ${x.rssi} dBm</td>
+      <td class="num">${x.packets} <span class="muted">(${x.measurements})</span></td>
+      <td class="num">${duration(x.maxGapS)}</td>
+      <td class="num">${ago(x.agoS)}</td></tr>`;
+  }).join('') || '<tr><td colspan="7" class="muted">Nothing heard yet.</td></tr>';
+}
+
+let failures = 0;
+async function refresh() {
+  try {
+    const r = await fetch('/api/status', { cache: 'no-store' });
+    if (!r.ok) throw new Error(r.status);
+    render(await r.json());
+    failures = 0;
+  } catch (e) {
+    if (++failures > 1) {
+      $('chipConn').className = 'chip bad';
+      $('chipConn').lastElementChild.textContent = 'not reachable';
+    }
+  }
+}
+refresh();
+setInterval(refresh, 5000);
+</script>
+</body>
+</html>

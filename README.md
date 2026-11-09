@@ -73,6 +73,8 @@ Settings in [Kconfig](firmware/ble-gateway/Kconfig): `GATEWAY_BTHOME_AUTO_ADD`, 
 
 Parser tests run on the Mac: `make test`.
 
+**Status page.** Both gateways, release builds included, serve a read-only status page on port 80: `http://<Thread extended MAC>.local/` from the home network (the hostname Matter registers with the border router; `dns-sd -L <instance> _matter._tcp` shows it), or `http://[<gateway IPv6>]/`. The BLE gateway's page shows the bridged sensors and thermostats with their values (target, valve, mode, flags), battery, signal and reachability, the devices heard, Thread, Matter heap, uptime, firmware and the Matter controllers; it refreshes every 5 s, and `/api/status` returns the same as JSON. It runs on OpenThread's TCP, so OpenThread is built from source (the prebuilt library has no TCP); the page is gzip-compressed into the firmware. Code: [common/web/](firmware/common/web/), the page in `src/web/index.html` of each app.
+
 **Log over the network.** Debug builds send their console output over UDP to a receiver anywhere on the home network, so a gateway on a USB charger can be watched without a cable:
 
 ```sh
@@ -121,7 +123,7 @@ enocean add 05017E43 d2 9 plug Kuechenradio
 | `enocean remove <id>` | Remove it (and its lamps) from Matter |
 | `enocean switch <id> on\|off [1\|2]` | Switch it, or one of its lamps, from the shell |
 
-Debug builds have a read-only status page: `http://<Thread extended MAC>.local/` (the hostname Matter registers through the border router) or `http://[<gateway IPv6>]/` from the home network (OpenThread's TCP, so OpenThread is built from source; the page is gzip-compressed into the firmware).
+The status page (see [Sensors and thermostats](#sensors-and-thermostats)) shows the actuators with their lamps and power, the TCM and the senders heard.
 
 All `make` and shell commands of the EnOcean gateway are collected in [firmware/enocean-gateway/COMMANDS.md](firmware/enocean-gateway/COMMANDS.md).
 

@@ -39,4 +39,7 @@ target_sources(app PRIVATE
   src/sensors/bthome_sensor_manager.cpp
 )
 
+# Status page (firmware/common/web): src/web/index.html and its JSON
+target_sources_ifdef(CONFIG_GATEWAY_WEB app PRIVATE src/web_status.cpp)
+
 ncs_configure_data_model()

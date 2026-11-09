@@ -37,13 +37,6 @@ namespace
 
 constexpr EndpointId kBridgeEndpointId = 1;
 
-#ifdef CONFIG_GATEWAY_WEB
-/* src/web/index.html, gzip-compressed at build time (CMakeLists.txt) */
-const uint8_t sWebPage[] = {
-#include "index.html.gz.inc"
-};
-#endif
-
 /* Trigger effect is enabled for the bridge device */
 Nrf::Matter::IdentifyCluster sIdentifyCluster(kBridgeEndpointId, true);
 
@@ -128,7 +121,7 @@ CHIP_ERROR AppTask::Init()
 		Gateway::NetLog::Init();
 #endif
 #ifdef CONFIG_GATEWAY_WEB
-		Gateway::Web::Init(sWebPage, sizeof(sWebPage), Gateway::WriteWebStatus);
+		Gateway::Web::Init(Gateway::WriteWebStatus);
 #endif
 		return CHIP_NO_ERROR;
 	} }));
