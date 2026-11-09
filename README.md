@@ -1,13 +1,20 @@
-# BLE-to-Matter-over-Thread Gateway
+# Matter-over-Thread Gateways (BLE and EnOcean)
 
-Firmware for an nRF52840 gateway. It brings existing BLE temperature/humidity sensors and BLE thermostats (for example eQ-3 radiator valves) into a Matter smart home over Thread. It is based on the nRF Connect SDK Matter Bridge application and is meant for home use, not certification.
+Firmware for nRF52840 gateways that bring existing devices into a Matter smart home over Thread. There are two separate apps, built from a shared bridge core:
+
+- **BLE gateway** ([firmware/ble-gateway/](firmware/ble-gateway/)): BLE temperature/humidity sensors and BLE thermostats (for example eQ-3 radiator valves).
+- **EnOcean gateway** ([firmware/enocean-gateway/](firmware/enocean-gateway/)): EnOcean actuators (Eltako, D2-01) through a TCM 310/515 module on a UART. See [EnOcean gateway](#enocean-gateway).
+
+Both are based on the nRF Connect SDK Matter Bridge application and are meant for home use, not certification. Unless a section says otherwise, it is about the BLE gateway.
 
 ## Layout
 
 | Path | Contents |
 | --- | --- |
-| [firmware/gateway/](firmware/gateway/) | The gateway application |
-| [Makefile](Makefile) | Shortcuts: build, flash, tests, shell, measurements (`make` lists them) |
+| [firmware/ble-gateway/](firmware/ble-gateway/) | The BLE gateway app |
+| [firmware/enocean-gateway/](firmware/enocean-gateway/) | The EnOcean gateway app |
+| [firmware/common/](firmware/common/) | Shared by both apps: bridge core, Matter device types, Matter identity from the chip ID, network log, shared Kconfig (`common.cmake`, `Kconfig`) |
+| [Makefile](Makefile) | Shortcuts: build, flash, tests, shell, measurements (`make` lists them; `APP=enocean-gateway` for the EnOcean gateway) |
 | [scripts/](scripts/) | `ncs-env.sh` sets up the SDK and toolchain; `diag-capture.py` and `diag-summary.py` for measurements |
 | [doc/BLE-to-Matter-over-Thread-Gateway.md](doc/BLE-to-Matter-over-Thread-Gateway.md) | Design: architecture, device handling, risks, plan |
 | [doc/Toolchain-Setup-VS-Code.md](doc/Toolchain-Setup-VS-Code.md) | Toolchain setup on macOS with VS Code |
@@ -26,7 +33,7 @@ Open tasks and decisions are in [TODO.md](TODO.md).
 | 4. One thermostat (connect on demand) | Done: eQ-3 CC-RT-BLE with [custom firmware](spike/eq3-flash/README.md). Values come from its broadcasts; target and Off/Heat are set from Apple Home over a short GATT connection per command. |
 | 5. Measure, then scale up or move to the nRF5340 | Measured with sensors and with thermostat commands, see [doc/measurements.md](doc/measurements.md). The nRF52840 has enough headroom, and Thread stays stable. Far sensors are the weak point. |
 
-`firmware/gateway` started as the spike with the parts the gateway doesn't need removed: the simulated devices, the on/off light and switch device types, the smart plug variant and the nRF5340/nRF54 board files. Memory use on the nRF52840 DK:
+`firmware/ble-gateway` started as the spike with the parts the gateway doesn't need removed: the simulated devices, the on/off light and switch device types, the smart plug variant and the nRF5340/nRF54 board files. Memory use on the nRF52840 DK:
 
 | Image | Flash | RAM (reserved at build time) |
 | --- | --- | --- |
@@ -62,7 +69,7 @@ Shell commands (in nRF Terminal, 115200 baud):
 
 `make term` opens the shell from a terminal.
 
-Settings in [Kconfig](firmware/gateway/Kconfig): `GATEWAY_BTHOME_AUTO_ADD`, `GATEWAY_BTHOME_MAX_SENSORS` (default 10), `GATEWAY_BTHOME_UNREACHABLE_TIMEOUT_S` (default 600), the scan window and interval, and for thermostats `GATEWAY_EQ3_TARGET_SETS_MANUAL`, `GATEWAY_EQ3_ATTEMPTS` and the timeouts.
+Settings in [Kconfig](firmware/ble-gateway/Kconfig): `GATEWAY_BTHOME_AUTO_ADD`, `GATEWAY_BTHOME_MAX_SENSORS` (default 10), `GATEWAY_BTHOME_UNREACHABLE_TIMEOUT_S` (default 600), the scan window and interval, and for thermostats `GATEWAY_EQ3_TARGET_SETS_MANUAL`, `GATEWAY_EQ3_ATTEMPTS` and the timeouts.
 
 Parser tests run on the Mac: `make test`.
 
@@ -74,9 +81,49 @@ make netlog SERIAL=9E749B   # with several gateways: pick one by serial number
 make netlog DEBUG=1         # include debug lines (much more Thread traffic)
 ```
 
-[scripts/netlog.py](scripts/netlog.py) finds the gateway through its Matter mDNS records (`dns-sd`, the same path Apple Home uses) and subscribes on UDP port 5140. Nothing needs configuring on either side, and the Mac's address may change. The gateway sends only while a receiver renews its subscription (every 5 s; it lapses after 60 s), info lines and above by default, at most one datagram of 480 bytes per 100 ms. After a gateway restart the log resumes with the next renewal, so the first few seconds of the boot log only show on the console. An idle gateway logs very little. Release builds have no log output. Details: [src/netlog/net_log.h](firmware/gateway/src/netlog/net_log.h).
+[scripts/netlog.py](scripts/netlog.py) finds the gateway through its Matter mDNS records (`dns-sd`, the same path Apple Home uses) and subscribes on UDP port 5140. Nothing needs configuring on either side, and the Mac's address may change. The gateway sends only while a receiver renews its subscription (every 5 s; it lapses after 60 s), info lines and above by default, at most one datagram of 480 bytes per 100 ms. After a gateway restart the log resumes with the next renewal, so the first few seconds of the boot log only show on the console. An idle gateway logs very little. Release builds have no log output. Details: [common/netlog/net_log.h](firmware/common/netlog/net_log.h).
 
 For RAM, stack and radio measurements: `make diag-flash`, then `make measure` (add `THERMOSTAT=<addr>` to send thermostat commands) and `make summary`. See [doc/measurements.md](doc/measurements.md).
+
+## EnOcean gateway
+
+The EnOcean gateway bridges EnOcean actuators that are already taught in to a TCM 310/515 module: each one becomes an On/Off Light or On/Off Plug-in Unit endpoint in Matter. It runs on the nRF52840 DK so far, with the module (for example on an EnOcean Pi hat) on UART1. The protocol work and the wiring are in [spike/enocean-tcm](spike/enocean-tcm/README.md).
+
+| EnOcean Pi (Pi header pin) | DK |
+| --- | --- |
+| 1 (3.3 V) | VDD |
+| 6 (GND) | GND |
+| 8 (module RXD) | P1.02 (Arduino D1) |
+| 10 (module TXD) | P1.01 (Arduino D0) |
+
+```sh
+make flash-erase APP=enocean-gateway   # first time on a board that ran the BLE gateway
+make flash APP=enocean-gateway
+make test APP=enocean-gateway          # ESP3/EEP parser tests on the Mac
+```
+
+Use `flash-erase` when switching a board from one app to the other: otherwise the new app finds the other app's commissioning and bridged devices. Both apps derive the same setup code from the chip ID, but have different product IDs (0x8002 BLE, 0x8003 EnOcean).
+
+Actuators are added in the shell, with the sender ID offset they were taught in with (sender ID = TCM base ID + offset):
+
+```
+enocean add 0188EA75 eltako 6 light Flur
+enocean add 05017E43 d2 9 plug Küchenradio
+```
+
+| Command | Purpose |
+| --- | --- |
+| `enocean info` | TCM version, base ID, receive and send counters |
+| `enocean seen` | Senders heard since start, with signal strength |
+| `enocean list` | Bridged actuators: endpoint, kind, state, power (D2-01) |
+| `enocean add <id> eltako\|d2 <offset> light\|plug <name>` | Bridge an actuator; it keeps its endpoint across restarts |
+| `enocean remove <id>` | Remove it from Matter |
+| `enocean switch <id> on\|off` | Switch it from the shell |
+
+- **Eltako** actuators are switched like by a rocker (one RPS press from the sender ID: `0x30` on, `0x10` off) and confirm with F6 telegrams. Their state is unknown after a restart until they switch once.
+- **D2-01** actuators get addressed commands (set output, status query). The gateway asks for their state at start.
+- A command from Matter sets the endpoint at once; the actuator's confirmation corrects it if it didn't switch. Telegrams from the gateway's own sender IDs (base ID .. base ID + 127) that come back through repeaters are ignored.
+- Never change the TCM's base ID: every actuator taught in to it would have to be taught in again.
 
 ## Ready-made firmware
 
@@ -91,7 +138,7 @@ Every board computes its own setup code (see [Commissioning](#commissioning)). R
 
 The project is pinned to **nRF Connect SDK v3.4.1**. The build stops with an error on any other SDK version, because the nRF52840 port has only been checked on this one.
 
-In VS Code, `firmware/gateway` appears in the nRF Connect panel. Add a build configuration for board `nrf52840dk/nrf52840` with sysbuild.
+In VS Code, `firmware/ble-gateway` and `firmware/enocean-gateway` appear in the nRF Connect panel. Add a build configuration for board `nrf52840dk/nrf52840` with sysbuild.
 
 From a terminal:
 
@@ -101,13 +148,13 @@ make flash-erase    # full erase: the gateway must be commissioned again
 make release        # release configuration (prj_release.conf) into build-release
 ```
 
-Add `BOARD=promicro` or `BOARD=promicro-uf2` to any target for the Pro Micro nRF52840. See [Pro Micro nRF52840](#pro-micro-nrf52840).
+Add `BOARD=promicro` or `BOARD=promicro-uf2` to any target for the Pro Micro nRF52840. See [Pro Micro nRF52840](#pro-micro-nrf52840). Add `APP=enocean-gateway` for the EnOcean gateway (DK only so far). `make test` runs the host tests of the chosen app.
 
 The targets set up the SDK themselves through `scripts/ncs-env.sh`. For `west` by hand, run `source scripts/ncs-env.sh` first. The script uses the external drive if it's mounted and `/opt/nordic` otherwise. Set `NCS_ROOT` to use a different location. If `/opt/nordic` is a symlink, point `NCS_ROOT` at the real path instead, because the symlink breaks some linker script includes. It also points `NRFUTIL_HOME` at the nrfutil that ships with the VS Code extension, which `west flash` needs.
 
 ### Commissioning
 
-Every gateway has its own Matter identity, so several can be in the same home. The firmware derives it at boot from the chip's unique ID (FICR DEVICEID), on every board and in every build: serial number `BLEGW-<chip ID>`, and discriminator, setup code, SPAKE2+ salt and rotating device ID hashed from the chip ID ([src/identity/](firmware/gateway/src/identity/chip_id_identity.h)). One firmware image thus works for every board, and the same board always gets the same codes, also after a re-flash. Certificates, vendor and product still come from the factory data.
+Every gateway has its own Matter identity, so several can be in the same home. The firmware derives it at boot from the chip's unique ID (FICR DEVICEID), on every board and in every build: serial number `BLEGW-<chip ID>`, and discriminator, setup code, SPAKE2+ salt and rotating device ID hashed from the chip ID ([common/identity/](firmware/common/identity/chip_id_identity.h)). One firmware image thus works for every board, and the same board always gets the same codes, also after a re-flash. Certificates, vendor and product still come from the factory data.
 
 To get a board's setup code:
 
@@ -142,15 +189,15 @@ There is no OTA on either Pro Micro variant: without external flash there is no 
 **UF2 (`BOARD=promicro-uf2`).** Run:
 
 ```sh
-make flash BOARD=promicro-uf2   # builds gateway.uf2 and copies it to the drive; the board restarts
+make flash BOARD=promicro-uf2   # builds ble-gateway.uf2 and copies it to the drive; the board restarts
 make term BOARD=promicro-uf2    # shell over the Pro Micro's USB port
 ```
 
 If the board isn't on its UF2 drive yet, `make flash` sends `gateway bootloader` over the USB shell first (`make term` must be closed) and waits for the drive. The very first time, or with firmware older than that command, short RST to GND twice quickly instead; the board then shows up as a USB drive.
 
-`scripts/make-uf2.py` merges the app and the Matter factory data into one `gateway.uf2`. The settings live in an area the bootloader never writes, so they survive every flash. That's also why `flash-erase` doesn't work here. To start from scratch, use `matter device factoryreset` or the button instead.
+`scripts/make-uf2.py` merges the app and the Matter factory data into one `ble-gateway.uf2`. The settings live in an area the bootloader never writes, so they survive every flash. That's also why `flash-erase` doesn't work here. To start from scratch, use `matter device factoryreset` or the button instead.
 
-**Bootloader version.** The gateway needs UF2 bootloader 0.6.1 or later; check the first line of `INFO_UF2.TXT` on the drive. Older versions, such as the 0.6.0 that some clones ship with, only write up to 0xAD000 and would silently drop the end of the gateway and its factory data. Update by copying `update-nice_nano_bootloader-<version>_nosd.uf2` from the [Adafruit releases](https://github.com/adafruit/Adafruit_nRF52_Bootloader/releases) to the drive; it keeps the SoftDevice, which the first `gateway.uf2` then overwrites. Tested: 0.6.0 updated to 0.11.0 this way, and the gateway runs on it. Details in [spike/uf2-bootloader-dk](spike/uf2-bootloader-dk/README.md).
+**Bootloader version.** The gateway needs UF2 bootloader 0.6.1 or later; check the first line of `INFO_UF2.TXT` on the drive. Older versions, such as the 0.6.0 that some clones ship with, only write up to 0xAD000 and would silently drop the end of the gateway and its factory data. Update by copying `update-nice_nano_bootloader-<version>_nosd.uf2` from the [Adafruit releases](https://github.com/adafruit/Adafruit_nRF52_Bootloader/releases) to the drive; it keeps the SoftDevice, which the first `ble-gateway.uf2` then overwrites. Tested: 0.6.0 updated to 0.11.0 this way, and the gateway runs on it. Details in [spike/uf2-bootloader-dk](spike/uf2-bootloader-dk/README.md).
 
 **SWD (`BOARD=promicro`).** The DK flashes the Pro Micro through its **Debug Out** header (P20). Connect the header to the SWD pads on the back of the Pro Micro: SWDIO, SWDCLK, GND, and VTref (pin 1) to the Pro Micro's 3.3 V. The DK switches to the external target when it sees a voltage on VTref. Power the Pro Micro over its own USB port, which also carries the shell. The first flash must be a full erase, because the UF2 bootloader's data sits where this variant keeps its settings:
 
@@ -167,7 +214,7 @@ The DK and the Pro Micro have different Matter credentials (see [Commissioning](
 
 ## Notes on the nRF52840 port
 
-The nRF52840 DK isn't a supported board for the SDK's Matter Bridge. Two sets of board files, both copied from the SDK's Matter template sample, make it work:
+The nRF52840 DK isn't a supported board for the SDK's Matter Bridge. Two sets of board files in each app folder, both copied from the SDK's Matter template sample, make it work:
 - `boards/nrf52840dk_nrf52840.{overlay,conf}`: the Matter flash layout with the 8 MB external flash, and BLE connections reduced to 3.
 - `sysbuild/mcuboot/boards/nrf52840dk_nrf52840.{overlay,conf}`: the same layout for the bootloader. Without these, MCUboot looks for the app at the wrong address and halts silently.
 

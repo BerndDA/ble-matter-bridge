@@ -1,0 +1,45 @@
+#
+# EnOcean-to-Matter-over-Thread gateway.
+# Based on the nRF Connect SDK Matter Bridge application
+# (Copyright (c) 2023 Nordic Semiconductor, LicenseRef-Nordic-5-Clause).
+#
+mainmenu "EnOcean-to-Matter-over-Thread Gateway"
+
+# The TCM on a UART, interrupt-driven receive into a ring buffer
+config SERIAL
+	default y
+
+config UART_INTERRUPT_DRIVEN
+	default y
+
+config RING_BUFFER
+	default y
+
+menu "EnOcean gateway"
+
+config GATEWAY_ENOCEAN_MAX_DEVICES
+	int "Maximum number of bridged EnOcean actuators"
+	default 8
+	help
+	  Each actuator uses one bridge provider and one dynamic endpoint. See
+	  BRIDGE_MAX_BRIDGED_DEVICES_NUMBER and BRIDGE_MAX_DYNAMIC_ENDPOINTS_NUMBER.
+
+config GATEWAY_ENOCEAN_SEEN_MAX
+	int "Number of senders kept in the 'heard' table"
+	default 16
+
+config GATEWAY_ENOCEAN_QUEUE_SIZE
+	int "Telegrams queued between the TCM and Matter threads"
+	default 8
+
+config GATEWAY_ENOCEAN_RX_STACK_SIZE
+	int "Stack size of the TCM receive thread"
+	default 1024
+
+module = GATEWAY_ENOCEAN
+module-str = Gateway EnOcean
+source "subsys/logging/Kconfig.template.log_config"
+
+endmenu
+
+rsource "../common/Kconfig"

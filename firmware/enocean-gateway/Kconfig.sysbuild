@@ -1,0 +1,31 @@
+#
+# EnOcean-to-Matter-over-Thread gateway (nRF52840, single core).
+# Based on the nRF Connect SDK Matter Bridge application
+# (Copyright (c) 2023 Nordic Semiconductor, LicenseRef-Nordic-5-Clause).
+#
+
+# The Pro Micro has no external flash, so there is no room for a second image slot:
+# it runs without MCUboot and the app uses the whole internal flash.
+choice BOOTLOADER
+	default BOOTLOADER_NONE if "$(BOARD)" = "promicro_nrf52840"
+	default BOOTLOADER_MCUBOOT
+endchoice
+
+# Matter OTA needs MCUboot and the second slot.
+config MATTER_OTA
+	default n if "$(BOARD)" = "promicro_nrf52840"
+
+if BOOTLOADER_MCUBOOT
+
+config DFU_MULTI_IMAGE_PACKAGE_BUILD
+	default y
+
+config DFU_MULTI_IMAGE_PACKAGE_APP
+	default y
+
+endif # BOOTLOADER_MCUBOOT
+
+config MATTER_FACTORY_DATA_GENERATE
+	default y
+
+source "share/sysbuild/Kconfig"

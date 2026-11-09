@@ -1,8 +1,10 @@
 {
     "nrf-connect.applications": [
-        "${workspaceFolder}/firmware/gateway",
+        "${workspaceFolder}/firmware/ble-gateway",
+        "${workspaceFolder}/firmware/enocean-gateway",
         "${workspaceFolder}/spike/hello-world",
-        "${workspaceFolder}/spike/matter-bridge-nrf52840"
+        "${workspaceFolder}/spike/matter-bridge-nrf52840",
+        "${workspaceFolder}/spike/enocean-tcm"
     ],
     // tools/connectedhomeip and its ~20 nested submodules would each show up in Source Control
     "git.detectSubmodules": false,
