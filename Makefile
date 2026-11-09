@@ -115,9 +115,9 @@ zap: ## Regenerate the Matter data model code after editing bridge.zap
 	@# Enabled clusters decide which server sources CMake adds; make the next build re-run CMake.
 	@touch $(APP_DIR)/CMakeLists.txt
 
-term: ## Open the gateway shell (115200 baud; Ctrl+] quits). Close nRF Terminal first
+term: ## Open the gateway shell (115200 baud; Ctrl+X quits). Close nRF Terminal first
 	@test -n "$(PORT)" || { echo "No serial port found for BOARD=$(BOARD); set PORT=/dev/cu.usbmodem..."; exit 1; }
-	@$(NCS) python3 -m serial.tools.miniterm --raw --eol CR $(PORT) 115200
+	@$(NCS) python3 -m serial.tools.miniterm --raw --eol CR --exit-char 24 $(PORT) 115200
 
 identity: ## Show the board's Matter setup code (from the UF2 drive, the J-Link, or CHIP_ID=<16 hex digits>)
 	@$(NCS) python3 scripts/make-uf2.py --identity $(BUILD) \

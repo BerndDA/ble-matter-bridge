@@ -14,7 +14,7 @@ Run from the repository root. `APP=enocean-gateway` is required on every call; w
 | `make release APP=enocean-gateway` | Release build (no logging, watchdog, reset on fatal error) into `build-release` |
 | `make release-flash APP=enocean-gateway` | Build the release firmware and flash it; keeps commissioning and bridged actuators |
 | `make test APP=enocean-gateway` | ESP3/EEP parser tests on the Mac |
-| `make term` | Open the gateway shell (115200 baud, Ctrl+] quits); close nRF Terminal first |
+| `make term` | Open the gateway shell (115200 baud, Ctrl+X quits); close nRF Terminal first |
 | `make identity APP=enocean-gateway` | Show the board's Matter setup code |
 | `make netlog` | Show the log over the network (debug builds); `SERIAL=<part>`, `DEBUG=1`, `HOST=<IPv6>` |
 | `make zap APP=enocean-gateway` | Regenerate the data model code after editing `src/default_zap/bridge.zap` |
