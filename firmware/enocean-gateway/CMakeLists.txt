@@ -29,4 +29,11 @@ target_sources(app PRIVATE
   src/enocean/enocean_shell.cpp
 )
 
+# Status page: the HTML is gzip-compressed at build time and served as is.
+if(CONFIG_GATEWAY_WEB)
+  generate_inc_file_for_target(app ${CMAKE_CURRENT_SOURCE_DIR}/src/web/index.html
+    ${ZEPHYR_BINARY_DIR}/include/generated/index.html.gz.inc --gzip)
+  target_sources(app PRIVATE src/web_status.cpp)
+endif()
+
 ncs_configure_data_model()

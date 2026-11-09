@@ -121,6 +121,8 @@ enocean add 05017E43 d2 9 plug Kuechenradio
 | `enocean remove <id>` | Remove it (and its lamps) from Matter |
 | `enocean switch <id> on\|off [1\|2]` | Switch it, or one of its lamps, from the shell |
 
+Debug builds have a read-only status page: `http://[<gateway IPv6>]/` from the home network (OpenThread's TCP, so OpenThread is built from source; the page is gzip-compressed into the firmware).
+
 All `make` and shell commands of the EnOcean gateway are collected in [firmware/enocean-gateway/COMMANDS.md](firmware/enocean-gateway/COMMANDS.md).
 
 - **Eltako** actuators are switched like by a rocker (one RPS press from the sender ID: `0x30` on, `0x10` off) and confirm with F6 telegrams. Their state is unknown after a restart until they switch once.

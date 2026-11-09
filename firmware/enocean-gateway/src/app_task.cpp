@@ -12,6 +12,10 @@
 #ifdef CONFIG_GATEWAY_NET_LOG
 #include "netlog/net_log.h"
 #endif
+#ifdef CONFIG_GATEWAY_WEB
+#include "web/web_server.h"
+#include "web_status.h"
+#endif
 
 #include "app/matter_init.h"
 #include "app/task_executor.h"
@@ -32,6 +36,13 @@ namespace
 {
 
 constexpr EndpointId kBridgeEndpointId = 1;
+
+#ifdef CONFIG_GATEWAY_WEB
+/* src/web/index.html, gzip-compressed at build time (CMakeLists.txt) */
+const uint8_t sWebPage[] = {
+#include "index.html.gz.inc"
+};
+#endif
 
 /* Trigger effect is enabled for the bridge device */
 Nrf::Matter::IdentifyCluster sIdentifyCluster(kBridgeEndpointId, true);
@@ -115,6 +126,9 @@ CHIP_ERROR AppTask::Init()
 		}
 #ifdef CONFIG_GATEWAY_NET_LOG
 		Gateway::NetLog::Init();
+#endif
+#ifdef CONFIG_GATEWAY_WEB
+		Gateway::Web::Init(sWebPage, sizeof(sWebPage), Gateway::WriteWebStatus);
 #endif
 		return CHIP_NO_ERROR;
 	} }));

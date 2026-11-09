@@ -67,6 +67,38 @@ config GATEWAY_NET_LOG_DATAGRAM
 
 endif # GATEWAY_NET_LOG
 
+config GATEWAY_WEB
+	bool "Read-only status page over HTTP"
+	depends on OPENTHREAD_SOURCES
+	select OPENTHREAD_TCP_ENABLE
+	help
+	  A browser on the home network opens http://[<gateway IPv6>]/. Uses
+	  OpenThread's TCP, which the prebuilt Nordic OpenThread library lacks:
+	  set CONFIG_OPENTHREAD_SOURCES=y. See web/web_server.h.
+
+if GATEWAY_WEB
+
+config GATEWAY_WEB_PORT
+	int "TCP port"
+	default 80
+
+config GATEWAY_WEB_CONNECTIONS
+	int "Connections at a time"
+	default 2
+
+config GATEWAY_WEB_RECEIVE_BUFFER
+	int "TCP receive buffer per connection (bytes)"
+	default 1280
+	help
+	  Holds a request (a browser's GET is well under 1 KB). It is also the
+	  receive window; the page only receives requests, so it can be small.
+
+config GATEWAY_WEB_JSON_BUFFER
+	int "Buffer for the status JSON (bytes)"
+	default 6144
+
+endif # GATEWAY_WEB
+
 endmenu
 
 # Thread networking

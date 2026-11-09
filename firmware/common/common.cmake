@@ -53,6 +53,7 @@ target_sources(app PRIVATE
 target_sources_ifdef(CONFIG_GATEWAY_IDENTITY_FROM_CHIP_ID app PRIVATE
   ${GATEWAY_COMMON_DIR}/identity/chip_id_identity.cpp)
 target_sources_ifdef(CONFIG_GATEWAY_NET_LOG app PRIVATE ${GATEWAY_COMMON_DIR}/netlog/net_log.cpp)
+target_sources_ifdef(CONFIG_GATEWAY_WEB app PRIVATE ${GATEWAY_COMMON_DIR}/web/web_server.cpp)
 
 # Matter device types: an app adds the ones it uses, for example
 #   target_sources(app PRIVATE ${GATEWAY_BRIDGED_DEVICE_TYPES}/temperature_sensor.cpp)

@@ -21,6 +21,10 @@ Run from the repository root. `APP=enocean-gateway` is required on every call; w
 
 Only the nRF52840 DK is supported so far, so leave `BOARD` at its default. The `diag`, `measure` and `summary` targets belong to the BLE gateway.
 
+## Status page
+
+Debug builds serve a read-only status page on port 80 of the gateway's Thread address: open `http://[<IPv6>]/` in a browser on the home network, for example `http://[2001:a61:309f:23fc:10ea:7103:5950:8777]/`. The address is in the page's "Thread network" section, and `make netlog` finds the gateway too. The page shows the actuators with their lamps and power, Thread, Matter heap, uptime, firmware, Matter controllers, the TCM and the senders heard; it refreshes every 5 s. `/api/status` returns the same as JSON.
+
 ## In the gateway shell: `enocean`
 
 | Command | Purpose |
