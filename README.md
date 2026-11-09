@@ -12,7 +12,7 @@ Firmware for an nRF52840 gateway. It brings existing BLE temperature/humidity se
 | [doc/BLE-to-Matter-over-Thread-Gateway.md](doc/BLE-to-Matter-over-Thread-Gateway.md) | Design: architecture, device handling, risks, plan |
 | [doc/Toolchain-Setup-VS-Code.md](doc/Toolchain-Setup-VS-Code.md) | Toolchain setup on macOS with VS Code |
 | [doc/measurements.md](doc/measurements.md) | Memory, stack and radio measurements |
-| [spike/](spike/) | Experiments, one folder each, kept as reference: the toolchain smoke test (`hello-world`), the first bridge port (`matter-bridge-nrf52840`), and eQ-3 flashing tools (`eq3-flash`) |
+| [spike/](spike/) | Experiments, one folder each, kept as reference: the toolchain smoke test (`hello-world`), the first bridge port (`matter-bridge-nrf52840`), eQ-3 flashing tools (`eq3-flash`), and an EnOcean TCM on UART for a future EnOcean gateway (`enocean-tcm`) |
 
 ## Status
 

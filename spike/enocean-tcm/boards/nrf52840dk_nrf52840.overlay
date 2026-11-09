@@ -1,0 +1,16 @@
+/*
+ * TCM 310/515 (EnOcean Pi hat) on UART1: P1.02 = TX to the module, P1.01 = RX from it
+ * (Arduino header D1/D0). Pins come from the board's arduino_serial pinctrl.
+ * UART0 stays the console on the J-Link USB port.
+ */
+
+/ {
+	chosen {
+		enocean,uart = &uart1;
+	};
+};
+
+&uart1 {
+	status = "okay";
+	current-speed = <57600>;
+};
