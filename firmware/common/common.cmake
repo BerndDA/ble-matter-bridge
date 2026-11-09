@@ -8,7 +8,7 @@
 set(GATEWAY_COMMON_DIR ${CMAKE_CURRENT_LIST_DIR})
 
 # The port to the nRF52840 (board files, MCUboot layout) is validated against one SDK version only.
-set(GATEWAY_NCS_VERSION "3.4.1")
+set(GATEWAY_NCS_VERSION "3.4.2")
 file(STRINGS ${ZEPHYR_NRF_MODULE_DIR}/VERSION _ncs_version_lines REGEX "^(VERSION_MAJOR|VERSION_MINOR|PATCHLEVEL) ")
 foreach(_line ${_ncs_version_lines})
   string(REGEX REPLACE "^([A-Z_]+) = ([0-9]+)$" "\\1;\\2" _kv "${_line}")

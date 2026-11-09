@@ -15,7 +15,7 @@ This is the minimum you need to build and flash firmware for the nRF52840 gatewa
 4. **Install the SDK and toolchain.** In the nRF Connect panel, choose **Install SDK** → **nRF Connect SDK** (not "Bare Metal") → the latest released tag. From v3.1.0 onward, the SDK, toolchain and nRF Util come as a single package. Pin this version for the project, and don't use preview tags for real work.
 5. **Check the setup.** Create a new application from a sample (for example *hello_world*), add a build configuration for board `nrf52840dk/nrf52840`, build it, connect the DK and click **Flash**. Open the serial output in nRF Terminal to confirm it runs.
 
-Next, build the SDK's `hello_world` sample for `nrf52840dk/nrf52840`, flash it to the DK, and verify its serial output. The Matter Bridge application in NCS v3.4.1 does not list the nRF52840 DK as a supported target; its supported platforms include the nRF5340 DK and nRF54LM20 DK. To run the bridge sample, use one of those supported boards or separately validate a port to the nRF52840.
+Next, build the SDK's `hello_world` sample for `nrf52840dk/nrf52840`, flash it to the DK, and verify its serial output. The Matter Bridge application in NCS v3.4.2 does not list the nRF52840 DK as a supported target; its supported platforms include the nRF5340 DK and nRF54LM20 DK. To run the bridge sample, use one of those supported boards or separately validate a port to the nRF52840.
 
 ## Installing on a separate drive (macOS)
 

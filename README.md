@@ -141,7 +141,7 @@ Every board computes its own setup code (see [Commissioning](#commissioning)). R
 
 ## Building and flashing
 
-The project is pinned to **nRF Connect SDK v3.4.1**. The build stops with an error on any other SDK version, because the nRF52840 port has only been checked on this one.
+The project is pinned to **nRF Connect SDK v3.4.2**. The build stops with an error on any other SDK version, because the nRF52840 port has only been checked on this one.
 
 In VS Code, `firmware/ble-gateway` and `firmware/enocean-gateway` appear in the nRF Connect panel. Add a build configuration for board `nrf52840dk/nrf52840` with sysbuild.
 

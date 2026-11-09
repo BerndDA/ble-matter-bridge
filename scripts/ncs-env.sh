@@ -13,8 +13,8 @@ if [ -z "${NCS_ROOT}" ] || [ ! -d "${NCS_ROOT}/ncs" ]; then
 		NCS_ROOT=/opt/nordic
 	fi
 fi
-NCS_VERSION="v3.4.1"
-NCS_TOOLCHAIN="${NCS_ROOT}/ncs/toolchains/97226bad62"
+NCS_VERSION="v3.4.2"
+NCS_TOOLCHAIN="${NCS_ROOT}/ncs/toolchains/fa36dcc52a"
 
 if [ ! -x "${NCS_TOOLCHAIN}/bin/west" ]; then
 	echo "ncs-env: west not found in ${NCS_TOOLCHAIN}/bin; set NCS_ROOT to your install" >&2
