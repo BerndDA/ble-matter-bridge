@@ -185,14 +185,6 @@ config GATEWAY_BTHOME_QUEUE_SIZE
 	int "Readings queued between the Bluetooth and Matter threads"
 	default 8
 
-config GATEWAY_UF2_BOOTLOADER_CMD
-	bool "Shell command to restart into the UF2 bootloader"
-	default y if BOARD_PROMICRO_NRF52840_NRF52840_UF2
-	help
-	  "gateway bootloader" sets GPREGRET to 0x57, which the Adafruit UF2
-	  bootloader takes as "stay in UF2 mode", and restarts. make flash
-	  BOARD=promicro-uf2 uses it, so no double tap on RST is needed.
-
 module = GATEWAY_SENSOR_SCANNER
 module-str = Gateway sensor scanner
 source "subsys/logging/Kconfig.template.log_config"

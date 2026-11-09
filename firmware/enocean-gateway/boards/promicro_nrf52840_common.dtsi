@@ -1,0 +1,60 @@
+/*
+ * Pro Micro nRF52840: parts shared by both variants
+ * (promicro_nrf52840_nrf52840.overlay for SWD, ..._uf2.overlay for the UF2 bootloader).
+ *
+ * TCM 310/515 (EnOcean Pi hat) on uart0, the board's default UART pins:
+ *   P0.09  TX, to the module's RX
+ *   P0.10  RX, from the module's TX
+ * plus 3.3 V (VCC) and GND. P0.09/P0.10 are the NFC pins; the board already
+ * sets them up as GPIOs (nfct-pins-as-gpios). The console runs over USB.
+ */
+
+/ {
+	chosen {
+		enocean,uart = &uart0;
+	};
+
+	/*
+	 * Optional function button: a push button between P1.06 and GND.
+	 * Hold it about 6 s for a factory reset, as Button 1 on the DK.
+	 * Unwired, the pull-up keeps it released.
+	 */
+	buttons {
+		compatible = "gpio-keys";
+
+		button0: button_0 {
+			gpios = <&gpio1 6 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>;
+			label = "Function button";
+			zephyr,code = <INPUT_KEY_0>;
+		};
+	};
+
+	aliases {
+		sw0 = &button0;
+	};
+};
+
+&uart0 {
+	current-speed = <57600>;
+};
+
+/* Unused peripherals. P1.06 above is i2c1's SCL by default. */
+&i2c0 {
+	status = "disabled";
+};
+
+&i2c1 {
+	status = "disabled";
+};
+
+&spi2 {
+	status = "disabled";
+};
+
+&pwm0 {
+	status = "disabled";
+};
+
+&adc {
+	status = "disabled";
+};

@@ -1,0 +1,49 @@
+/*
+ * Pro Micro nRF52840 (nice!nano clone, also sold as "SuperMini").
+ *
+ * No external flash and no MCUboot: the app starts at 0x0 and uses the
+ * internal flash up to the factory data and settings partitions, which sit
+ * at the same addresses as on the DK. The factory UF2 bootloader and the
+ * SoftDevice area are erased by the first SWD flash.
+ *
+ * The variant that keeps the UF2 bootloader is promicro_nrf52840_nrf52840_uf2.overlay.
+ */
+
+/delete-node/ &boot_partition;
+/delete-node/ &slot0_partition;
+/delete-node/ &slot1_partition;
+/delete-node/ &storage_partition;
+
+/ {
+	chosen {
+		zephyr,code-partition = &slot0_partition;
+	};
+};
+
+&flash0 {
+	partitions {
+		ranges;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		slot0_partition: partition@0 {
+			compatible = "zephyr,mapped-partition";
+			label = "image-0";
+			reg = <0x00000000 DT_SIZE_K(988)>;
+		};
+
+		factory_data_partition: partition@f7000 {
+			compatible = "zephyr,mapped-partition";
+			label = "factory-data";
+			reg = <0x000f7000 DT_SIZE_K(4)>;
+		};
+
+		storage_partition: partition@f8000 {
+			compatible = "zephyr,mapped-partition";
+			label = "storage";
+			reg = <0x000f8000 DT_SIZE_K(32)>;
+		};
+	};
+};
+
+#include "promicro_nrf52840_common.dtsi"

@@ -87,14 +87,14 @@ For RAM, stack and radio measurements: `make diag-flash`, then `make measure` (a
 
 ## EnOcean gateway
 
-The EnOcean gateway bridges EnOcean actuators that are already taught in to a TCM 310/515 module: each one becomes an On/Off Light or On/Off Plug-in Unit endpoint in Matter. It runs on the nRF52840 DK so far, with the module (for example on an EnOcean Pi hat) on UART1. The protocol work and the wiring are in [spike/enocean-tcm](spike/enocean-tcm/README.md).
+The EnOcean gateway bridges EnOcean actuators that are already taught in to a TCM 310/515 module: each one becomes an On/Off Light or On/Off Plug-in Unit endpoint in Matter. It runs on the nRF52840 DK and on the Pro Micro nRF52840 (`BOARD=promicro-uf2` or `BOARD=promicro`, see [Pro Micro nRF52840](#pro-micro-nrf52840)), with the module (for example on an EnOcean Pi hat) on a UART. The protocol work is in [spike/enocean-tcm](spike/enocean-tcm/README.md).
 
-| EnOcean Pi (Pi header pin) | DK |
-| --- | --- |
-| 1 (3.3 V) | VDD |
-| 6 (GND) | GND |
-| 8 (module RXD) | P1.02 (Arduino D1) |
-| 10 (module TXD) | P1.01 (Arduino D0) |
+| EnOcean Pi (Pi header pin) | DK | Pro Micro |
+| --- | --- | --- |
+| 1 (3.3 V) | VDD | VCC (3.3 V) |
+| 6 (GND) | GND | GND |
+| 8 (module RXD) | P1.02 (Arduino D1) | P0.09 |
+| 10 (module TXD) | P1.01 (Arduino D0) | P0.10 |
 
 ```sh
 make flash-erase APP=enocean-gateway   # first time on a board that ran the BLE gateway
@@ -155,7 +155,7 @@ make flash-erase    # full erase: the gateway must be commissioned again
 make release        # release configuration (prj_release.conf) into build-release
 ```
 
-Add `BOARD=promicro` or `BOARD=promicro-uf2` to any target for the Pro Micro nRF52840. See [Pro Micro nRF52840](#pro-micro-nrf52840). Add `APP=enocean-gateway` for the EnOcean gateway (DK only so far). `make test` runs the host tests of the chosen app.
+Add `BOARD=promicro` or `BOARD=promicro-uf2` to any target for the Pro Micro nRF52840. See [Pro Micro nRF52840](#pro-micro-nrf52840). Add `APP=enocean-gateway` for the EnOcean gateway (DK or Pro Micro). `make test` runs the host tests of the chosen app.
 
 The targets set up the SDK themselves through `scripts/ncs-env.sh`. For `west` by hand, run `source scripts/ncs-env.sh` first. The script uses the external drive if it's mounted and `/opt/nordic` otherwise. Set `NCS_ROOT` to use a different location. If `/opt/nordic` is a symlink, point `NCS_ROOT` at the real path instead, because the symlink breaks some linker script includes. It also points `NRFUTIL_HOME` at the nrfutil that ships with the VS Code extension, which `west flash` needs.
 

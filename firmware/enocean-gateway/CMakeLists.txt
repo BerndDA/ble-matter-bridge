@@ -27,6 +27,7 @@ target_sources(app PRIVATE
   src/enocean/tcm.c
   src/enocean/enocean_manager.cpp
   src/enocean/enocean_shell.cpp
+  src/gateway_shell.cpp
 )
 
 # Status page: the HTML is gzip-compressed at build time and served as is.
