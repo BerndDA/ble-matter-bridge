@@ -312,7 +312,8 @@ function render(s) {
     `<div class="kv"><span>Not reachable</span><span>${s.sensors.filter(x => !x.reachable).length}</span></div>`;
 
   // ---- heard ----
-  $('seen').innerHTML = s.seen.sort((a, b) => a.agoS - b.agoS).map(x => {
+  // By address, so rows don't jump around on every refresh.
+  $('seen').innerHTML = s.seen.sort((a, b) => a.address.localeCompare(b.address)).map(x => {
     const v = [];
     if (x.temperature != null) v.push(`${c1(x.temperature)} °C`);
     if (x.humidity != null) v.push(`${c1(x.humidity)} %`);
