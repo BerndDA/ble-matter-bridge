@@ -18,10 +18,11 @@ config RING_BUFFER
 menu "EnOcean gateway"
 
 config GATEWAY_ENOCEAN_MAX_DEVICES
-	int "Maximum number of bridged EnOcean actuators"
-	default 8
+	int "Maximum number of bridged EnOcean endpoints"
+	default 16
 	help
-	  Each actuator uses one bridge provider and one dynamic endpoint. See
+	  Each endpoint (an actuator, or one lamp of a two-channel actuator) uses one bridge provider
+	  and one dynamic endpoint. See
 	  BRIDGE_MAX_BRIDGED_DEVICES_NUMBER and BRIDGE_MAX_DYNAMIC_ENDPOINTS_NUMBER.
 
 config GATEWAY_ENOCEAN_SEEN_MAX

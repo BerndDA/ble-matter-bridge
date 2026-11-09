@@ -117,12 +117,14 @@ enocean add 05017E43 d2 9 plug Kuechenradio
 | `enocean seen` | Senders heard since start, with signal strength |
 | `enocean list` | Bridged actuators: endpoint, kind, state, power (D2-01) |
 | `enocean add <id> eltako\|d2 <offset> light\|plug <name>` | Bridge an actuator; it keeps its endpoint across restarts |
-| `enocean remove <id>` | Remove it from Matter |
-| `enocean switch <id> on\|off` | Switch it from the shell |
+| `enocean lamps <id> <step offset> <name>` | One extra endpoint per contact of a two-channel Eltako in series-switch mode |
+| `enocean remove <id>` | Remove it (and its lamps) from Matter |
+| `enocean switch <id> on\|off [1\|2]` | Switch it, or one of its lamps, from the shell |
 
 All `make` and shell commands of the EnOcean gateway are collected in [firmware/enocean-gateway/COMMANDS.md](firmware/enocean-gateway/COMMANDS.md).
 
 - **Eltako** actuators are switched like by a rocker (one RPS press from the sender ID: `0x30` on, `0x10` off) and confirm with F6 telegrams. Their state is unknown after a restart until they switch once.
+- **Two-channel Eltako** actuators (FMS61NP) confirm each contact on its own: `0x70`/`0x50` is contact 1 on/off, `0x30`/`0x10` contact 2. The actuator's endpoint is on while any contact is on. In series-switch mode (SS1: off, contact 1, contact 2, both) a radio sender can't address one contact, so `enocean lamps` adds one endpoint per contact that the gateway reaches by stepping: it presses a second sender, taught in as series-switch pushbutton (lower dial on the pushbutton symbol), until both contacts are as wanted, about 1 s per step. All on and all off go through the actuator's own (central) sender. The wall switch keeps working, and every endpoint follows it.
 - **D2-01** actuators get addressed commands (set output, status query). The gateway asks for their state at start and repeats the query until they answer (30 s, doubling up to 10 min).
 - **D2-01** endpoints are also Electrical Sensors: the Electrical Power Measurement cluster reports the load's active power, which the gateway asks for after every status answer (and which actuators set up for it report on their own). Apple Home shows it in the accessory's details, as do Home Assistant and other Matter controllers; `enocean list` shows it too.
 - A command from Matter sets the endpoint at once; the actuator's confirmation corrects it if it didn't switch. Telegrams from the gateway's own sender IDs (base ID .. base ID + 127) that come back through repeaters are ignored.
