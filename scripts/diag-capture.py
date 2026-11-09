@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Periodically run diagnostic shell commands on the gateway and log the output.
 
-Needs the diagnostics build (firmware/gateway/diag.conf) and a free serial port
+Needs the diagnostics build (firmware/ble-gateway/diag.conf) and a free serial port
 (close nRF Terminal first). Run with the toolchain's Python, which has pyserial:
 
     source scripts/ncs-env.sh

@@ -4,11 +4,11 @@
 For the Pro Micro nRF52840 with the factory UF2 bootloader (make ... BOARD=promicro-uf2).
 The app and the Matter factory data go into one .uf2. The bootloader only writes
 0x1000-0xea000, so everything must lie in that range (see
-firmware/gateway/boards/promicro_nrf52840_nrf52840_uf2.overlay).
+firmware/ble-gateway/boards/promicro_nrf52840_nrf52840_uf2.overlay).
 
 Per-board identity: the firmware derives serial number, discriminator, setup code,
 SPAKE2+ salt and rotating device ID from the chip ID (FICR DEVICEID) at boot
-(CONFIG_GATEWAY_IDENTITY_FROM_CHIP_ID, firmware/gateway/src/identity/). The UF2
+(CONFIG_GATEWAY_IDENTITY_FROM_CHIP_ID, firmware/common/identity/). The UF2
 bootloader reports the same chip ID as its USB serial number, so --identity
 BUILD_DIR computes the same values here (derive_identity) and prints the board's
 setup code. The generated factory data under BUILD_DIR/identity/<chip ID>/ is only

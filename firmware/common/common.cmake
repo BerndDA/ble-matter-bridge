@@ -1,14 +1,11 @@
 #
-# BLE-to-Matter-over-Thread gateway.
+# Shared parts of the gateway apps (firmware/*-gateway). An app includes this file after
+# project() and before its own sources; it ends with ncs_configure_data_model().
 # Based on the nRF Connect SDK Matter Bridge application
 # (Copyright (c) 2023 Nordic Semiconductor ASA, LicenseRef-Nordic-5-Clause).
 #
 
-cmake_minimum_required(VERSION 3.20.0)
-
-find_package(Zephyr HINTS $ENV{ZEPHYR_BASE})
-
-project(ble-matter-gateway)
+set(GATEWAY_COMMON_DIR ${CMAKE_CURRENT_LIST_DIR})
 
 # The port to the nRF52840 (board files, MCUboot layout) is validated against one SDK version only.
 set(GATEWAY_NCS_VERSION "3.4.1")
@@ -38,42 +35,25 @@ include(${ZEPHYR_NRF_MODULE_DIR}/samples/matter/common/cmake/zap_helpers.cmake)
 ncs_get_zap_parent_dir(ZAP_PARENT_DIR)
 
 target_include_directories(app PRIVATE
-  src
-  src/bridged_device_types
   ${ZAP_PARENT_DIR}
-  src/core/util
-  src/core
-  src/ble
-  src/ble/data_providers
-  src/sensors
-  src/thermostat
+  ${GATEWAY_COMMON_DIR}
+  ${GATEWAY_COMMON_DIR}/core
+  ${GATEWAY_COMMON_DIR}/core/util
+  ${GATEWAY_COMMON_DIR}/bridged_device_types
 )
 
 target_sources(app PRIVATE
-  src/app_task.cpp
-  src/main.cpp
-  src/bridge_shell.cpp
-  src/zcl_callbacks.cpp
-  src/core/bridge_manager.cpp
-  src/core/matter_bridged_device.cpp
-  src/core/bridge_storage_manager.cpp
-  src/core/bridged_device_data_provider.cpp
-  src/ble/ble_connectivity_manager.cpp
-  src/ble/ble_bridged_device_factory.cpp
-  src/bridged_device_types/temperature_sensor.cpp
-  src/bridged_device_types/humidity_sensor.cpp
-  src/bridged_device_types/thermostat.cpp
-  src/thermostat/eq3_client.cpp
-  src/ble/data_providers/ble_environmental_data_provider.cpp
-  src/sensors/bthome.c
-  src/sensors/sensor_scanner.c
-  src/sensors/sensor_shell.cpp
-  src/sensors/bthome_sensor_provider.cpp
-  src/sensors/bthome_sensor_manager.cpp
+  ${GATEWAY_COMMON_DIR}/core/bridge_manager.cpp
+  ${GATEWAY_COMMON_DIR}/core/matter_bridged_device.cpp
+  ${GATEWAY_COMMON_DIR}/core/bridge_storage_manager.cpp
+  ${GATEWAY_COMMON_DIR}/core/bridged_device_data_provider.cpp
   ${ZEPHYR_NRF_MODULE_DIR}/samples/matter/common/src/binding/binding_handler.cpp
 )
 
-target_sources_ifdef(CONFIG_GATEWAY_IDENTITY_FROM_CHIP_ID app PRIVATE src/identity/chip_id_identity.cpp)
-target_sources_ifdef(CONFIG_GATEWAY_NET_LOG app PRIVATE src/netlog/net_log.cpp)
+target_sources_ifdef(CONFIG_GATEWAY_IDENTITY_FROM_CHIP_ID app PRIVATE
+  ${GATEWAY_COMMON_DIR}/identity/chip_id_identity.cpp)
+target_sources_ifdef(CONFIG_GATEWAY_NET_LOG app PRIVATE ${GATEWAY_COMMON_DIR}/netlog/net_log.cpp)
 
-ncs_configure_data_model()
+# Matter device types: an app adds the ones it uses, for example
+#   target_sources(app PRIVATE ${GATEWAY_BRIDGED_DEVICE_TYPES}/temperature_sensor.cpp)
+set(GATEWAY_BRIDGED_DEVICE_TYPES ${GATEWAY_COMMON_DIR}/bridged_device_types)

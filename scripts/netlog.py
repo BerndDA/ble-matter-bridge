@@ -5,7 +5,7 @@ Finds gateways through their Matter mDNS records (dns-sd, macOS), asks each
 Matter node on UDP port 5140 whether it is a gateway, subscribes to the chosen
 one and prints what it sends until Ctrl-C. The subscription is renewed every
 5 s; the gateway stops sending a minute after the last renewal. Protocol:
-firmware/gateway/src/netlog/net_log.h.
+firmware/common/netlog/net_log.h.
 
 Usage:
   netlog.py                      the only gateway found (or a list to choose from)

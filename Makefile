@@ -1,11 +1,20 @@
-# Shortcuts for building, flashing and testing the gateway. `make` lists the targets.
+# Shortcuts for building, flashing and testing the gateways. `make` lists the targets.
 # Every target sets up the SDK itself (scripts/ncs-env.sh); no need to source it first.
-# Add BOARD=promicro or BOARD=promicro-uf2 to any target for the Pro Micro nRF52840.
+# Add APP=enocean-gateway for the EnOcean gateway (default: the BLE gateway), and
+# BOARD=promicro or BOARD=promicro-uf2 for the Pro Micro nRF52840.
 
 SHELL := /bin/bash
 .DEFAULT_GOAL := help
 
-APP      := firmware/gateway
+# App: a folder in firmware/ (ble-gateway, enocean-gateway). An exported APP from the shell is ignored.
+ifeq ($(origin APP),environment)
+APP      := ble-gateway
+endif
+APP      ?= ble-gateway
+APP_DIR  := firmware/$(APP)
+ifeq ($(wildcard $(APP_DIR)/CMakeLists.txt),)
+$(error APP must be one of: $(notdir $(patsubst %/CMakeLists.txt,%,$(wildcard firmware/*-gateway/CMakeLists.txt))))
+endif
 
 # Board:
 #   dk            nRF52840 DK (default)
@@ -38,15 +47,18 @@ endif
 # promicro-uf2: make-uf2.py also prints the board's setup code (the firmware derives it from the chip ID).
 # Without a UF2 drive, it first sends `gateway bootloader` on PORT.
 ifdef UF2
-flash_dir = $(NCS) python3 scripts/make-uf2.py -o $(1)/gateway.uf2 --deploy --identity $(1) \
-	$(if $(PORT),--port $(PORT)) $(1)/gateway/zephyr/zephyr.hex $(1)/matter_factory_data/zephyr/factory_data.hex
+flash_dir = $(NCS) python3 scripts/make-uf2.py -o $(1)/$(APP).uf2 --deploy --identity $(1) \
+	$(if $(PORT),--port $(PORT)) $(1)/$(APP)/zephyr/zephyr.hex $(1)/matter_factory_data/zephyr/factory_data.hex
 else
 flash_dir = $(NCS) west flash -d $(1) $(2)
 endif
 
-BUILD    := $(APP)/build$(SUFFIX)
-DIAG     := $(APP)/build-diag$(SUFFIX)
-RELEASE  := $(APP)/build-release$(SUFFIX)
+BUILD    := $(APP_DIR)/build$(SUFFIX)
+DIAG     := $(APP_DIR)/build-diag$(SUFFIX)
+RELEASE  := $(APP_DIR)/build-release$(SUFFIX)
+
+# Host unit tests: every tests/host/<name>/Makefile of the app
+TESTS    := $(patsubst %/Makefile,%,$(wildcard $(APP_DIR)/tests/host/*/Makefile))
 
 # Measurement settings (make measure MINUTES=20 THERMOSTAT=00:1A:22:0F:3F:02)
 MINUTES    ?= 20
@@ -68,8 +80,8 @@ CHIP_ZAP_VER := v2026.05.12-nightly
 help: ## List the targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  make %-12s %s\n", $$1, $$2}'
 
-build: ## Build the gateway (incremental)
-	@$(NCS) west build -b $(TARGET) --sysbuild -d $(BUILD) $(APP)
+build: ## Build the app (incremental)
+	@$(NCS) west build -b $(TARGET) --sysbuild -d $(BUILD) $(APP_DIR)
 
 flash: build ## Build and flash; keeps commissioning and stored devices
 	@$(call flash_dir,$(BUILD))
@@ -84,21 +96,21 @@ else
 endif
 
 release: ## Build with prj_release.conf (no logging, watchdog, reset on fatal error) into build-release
-	@$(NCS) west build -b $(TARGET) --sysbuild -d $(RELEASE) $(APP) -- -DFILE_SUFFIX=release
+	@$(NCS) west build -b $(TARGET) --sysbuild -d $(RELEASE) $(APP_DIR) -- -DFILE_SUFFIX=release
 
 diag: ## Build the diagnostics firmware (stack, heap, thread statistics) into build-diag
-	@$(NCS) west build -b $(TARGET) --sysbuild -d $(DIAG) $(APP) -- -DEXTRA_CONF_FILE=diag.conf
+	@$(NCS) west build -b $(TARGET) --sysbuild -d $(DIAG) $(APP_DIR) -- -DEXTRA_CONF_FILE=diag.conf
 
 diag-flash: diag ## Build and flash the diagnostics firmware
 	@$(call flash_dir,$(DIAG))
 
-test: ## Run the host unit tests (BTHome parser)
-	@$(MAKE) --no-print-directory -C $(APP)/tests/host/bthome
+test: ## Run the app's host unit tests (BTHome parser, ESP3/EEP parser)
+	@$(foreach t,$(TESTS),$(MAKE) --no-print-directory -C $(t) &&) true
 
 zap: ## Regenerate the Matter data model code after editing bridge.zap
-	@$(NCS) cd $(APP) && west zap-generate -z src/default_zap/bridge.zap
+	@$(NCS) cd $(APP_DIR) && west zap-generate -z src/default_zap/bridge.zap
 	@# Enabled clusters decide which server sources CMake adds; make the next build re-run CMake.
-	@touch $(APP)/CMakeLists.txt
+	@touch $(APP_DIR)/CMakeLists.txt
 
 term: ## Open the gateway shell (115200 baud; Ctrl+] quits). Close nRF Terminal first
 	@test -n "$(PORT)" || { echo "No serial port found for BOARD=$(BOARD); set PORT=/dev/cu.usbmodem..."; exit 1; }
@@ -131,4 +143,4 @@ summary: ## Summarize the newest capture in measurements/
 	@python3 scripts/diag-summary.py $$(ls -t measurements/diag-*.log | head -1)
 
 clean: ## Delete the build folders of BOARD (build, build-diag, build-release) and the test build
-	rm -rf $(BUILD) $(DIAG) $(RELEASE) $(APP)/tests/host/bthome/build
+	rm -rf $(BUILD) $(DIAG) $(RELEASE) $(addsuffix /build,$(TESTS))

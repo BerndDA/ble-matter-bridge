@@ -64,7 +64,7 @@ The scan pauses during each connection (up to 20 s per attempt), and reception s
 ## 2026-11-04: nRF52840 DK, two BTHome sensors, Thread router
 
 Setup:
-- `firmware/gateway` built with [diag.conf](../firmware/gateway/diag.conf) (stack, heap and thread statistics).
+- `firmware/ble-gateway` built with [diag.conf](../firmware/ble-gateway/diag.conf) (stack, heap and thread statistics).
 - Commissioned into Apple Home; a HomePod is the Thread border router. The gateway is a Thread router.
 - Two pvvx sensors (BTHome v2, advertising every 2.5 s, measuring every 10 s): `A4:C1:38:0C:54:AA` near the DK at about -30 dBm, `A4:C1:38:57:96:28` in another room at about -80 dBm.
 - Background scan: window 25 ms every 100 ms (25 % duty cycle).
@@ -74,8 +74,8 @@ Reproduce (close nRF Terminal first):
 
 ```sh
 source scripts/ncs-env.sh
-west build -b nrf52840dk/nrf52840 --sysbuild -d firmware/gateway/build-diag firmware/gateway -- -DEXTRA_CONF_FILE=diag.conf
-west flash -d firmware/gateway/build-diag
+west build -b nrf52840dk/nrf52840 --sysbuild -d firmware/ble-gateway/build-diag firmware/ble-gateway -- -DEXTRA_CONF_FILE=diag.conf
+west flash -d firmware/ble-gateway/build-diag
 python3 scripts/diag-capture.py --minutes 60 --interval 60 --ab
 python3 scripts/diag-summary.py measurements/diag-<time>.log
 ```

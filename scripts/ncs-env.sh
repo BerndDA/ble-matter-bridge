@@ -1,7 +1,7 @@
 # Source this file to build and flash from a terminal:
 #   source scripts/ncs-env.sh
-#   west build -b nrf52840dk/nrf52840 --sysbuild -d firmware/gateway/build firmware/gateway
-#   west flash -d firmware/gateway/build
+#   west build -b nrf52840dk/nrf52840 --sysbuild -d firmware/ble-gateway/build firmware/ble-gateway
+#   west flash -d firmware/ble-gateway/build
 #
 # It uses the real install path (not the /opt/nordic symlink), because builds through
 # the symlink fail to resolve some linker script includes.
