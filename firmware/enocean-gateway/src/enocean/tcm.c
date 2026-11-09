@@ -72,6 +72,18 @@ static void handle_response(const struct esp3_packet *pkt)
 		return;
 	}
 
+	/*
+	 * Answers are matched to the last command sent, but an answer can arrive after the next
+	 * command went out (the version answer after the base ID query, seen after a restart).
+	 * The two startup answers differ in length: the version answer has 33 data bytes, the
+	 * base ID answer 5.
+	 */
+	if (pkt->data_len >= 33) {
+		cmd = ESP3_CO_RD_VERSION;
+	} else if (cmd == ESP3_CO_RD_VERSION) {
+		cmd = 0;
+	}
+
 	switch (cmd) {
 	case ESP3_CO_RD_VERSION:
 		if (pkt->data_len >= 33) {
@@ -86,9 +98,16 @@ static void handle_response(const struct esp3_packet *pkt)
 		}
 		break;
 	case ESP3_CO_RD_IDBASE:
-		if (pkt->data_len >= 5) {
-			info.base_id = ((uint32_t)d[1] << 24) | ((uint32_t)d[2] << 16) |
-				       ((uint32_t)d[3] << 8) | d[4];
+		if (pkt->data_len == 5) {
+			const uint32_t id = ((uint32_t)d[1] << 24) | ((uint32_t)d[2] << 16) |
+					    ((uint32_t)d[3] << 8) | d[4];
+
+			/* Base IDs are FF800000..FFFFFF80 (a range of 128 sender IDs). */
+			if (id < 0xFF800000u || id > 0xFFFFFF80u) {
+				LOG_WRN("TCM: base ID answer %08X out of range, ignored", id);
+				break;
+			}
+			info.base_id = id;
 			if (pkt->opt_len >= 1) {
 				info.base_id_changes_left = esp3_opt(pkt)[0];
 			}
