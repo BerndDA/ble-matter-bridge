@@ -299,3 +299,13 @@ size_t eep_d2_01_query_status(uint32_t sender, uint32_t dest, uint8_t channel, u
 
 	return erp1_encode(EEP_RORG_VLD, p, sizeof(p), sender, 0x00, dest, out, out_size);
 }
+
+size_t eep_d2_01_query_measurement(uint32_t sender, uint32_t dest, uint8_t channel, bool power,
+				   uint8_t *out, size_t out_size)
+{
+	/* Byte 1: bit 5 = query power (1) or energy (0), bits 4..0 = channel */
+	const uint8_t p[2] = {EEP_D2_01_MEASUREMENT_QUERY,
+			      (uint8_t)((power ? 0x20 : 0x00) | (channel & 0x1F))};
+
+	return erp1_encode(EEP_RORG_VLD, p, sizeof(p), sender, 0x00, dest, out, out_size);
+}

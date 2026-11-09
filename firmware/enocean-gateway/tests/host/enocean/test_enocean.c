@@ -477,6 +477,21 @@ static void test_d2_01_commands(void)
 	CHECK_EQ(t.payload_len, 2);
 	CHECK_EQ(t.payload[0], 0x03);
 	CHECK_EQ(t.payload[1], 0x1E);
+
+	n = eep_d2_01_query_measurement(0xFFA01D89, 0x05017E43, 0, true, out, sizeof(out));
+	CHECK_EQ(feed(&dec, out, n), 1);
+	CHECK(erp1_parse(&dec.pkt, &t));
+	CHECK_EQ(t.rorg, 0xD2);
+	CHECK_EQ(t.payload_len, 2);
+	CHECK_EQ(t.payload[0], 0x06);
+	CHECK_EQ(t.payload[1], 0x20);
+	CHECK_EQ(t.sender, 0xFFA01D89);
+	CHECK_EQ(t.dest, 0x05017E43);
+
+	n = eep_d2_01_query_measurement(0xFFA01D89, 0x05017E43, 1, false, out, sizeof(out));
+	CHECK_EQ(feed(&dec, out, n), 1);
+	CHECK(erp1_parse(&dec.pkt, &t));
+	CHECK_EQ(t.payload[1], 0x01);
 }
 
 int main(void)

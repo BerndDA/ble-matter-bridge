@@ -117,6 +117,7 @@ bool eep_ute(const struct erp1 *t, struct eep_ute *out);
 #define EEP_D2_01_SET_OUTPUT 0x01
 #define EEP_D2_01_STATUS_QUERY 0x03
 #define EEP_D2_01_STATUS_RESPONSE 0x04
+#define EEP_D2_01_MEASUREMENT_QUERY 0x06
 #define EEP_D2_01_MEASUREMENT_RESPONSE 0x07
 
 #define EEP_D2_01_ALL_CHANNELS 0x1E
@@ -168,6 +169,13 @@ size_t eep_d2_01_set_output(uint32_t sender, uint32_t dest, uint8_t channel, uin
 /* D2-01 command 3: ask for the status of a channel; the actuator answers with command 4. */
 size_t eep_d2_01_query_status(uint32_t sender, uint32_t dest, uint8_t channel, uint8_t *out,
 			      size_t out_size);
+
+/*
+ * D2-01 command 6: ask for the power (power = true) or the energy of a channel; the actuator
+ * answers with command 7.
+ */
+size_t eep_d2_01_query_measurement(uint32_t sender, uint32_t dest, uint8_t channel, bool power,
+				   uint8_t *out, size_t out_size);
 
 #ifdef __cplusplus
 }

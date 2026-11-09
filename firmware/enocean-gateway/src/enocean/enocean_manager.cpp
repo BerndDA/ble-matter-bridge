@@ -76,8 +76,14 @@ CHIP_ERROR StoreDeviceIndexes()
 MatterBridgedDevice *CreateDevice(const EnOceanUserData &data, uint16_t deviceType, const char *uniqueID,
 				  const char *label)
 {
+	/* D2-01 actuators can measure the power of their load. */
+	const bool measuresPower = data.mKind == EnOceanUserData::kD2_01;
+
+	if (measuresPower && OnOffLightDevice::RegisterPowerMeasurement() != CHIP_NO_ERROR) {
+		LOG_ERR("EnOcean: cannot register the power measurement");
+	}
 	return Platform::New<OnOffLightDevice>(uniqueID, label, deviceType, VendorName(data.mKind),
-					       ProductName(data.mKind));
+					       ProductName(data.mKind), measuresPower);
 }
 } /* namespace */
 
@@ -128,6 +134,16 @@ void EnOceanProvider::OnState(bool on)
 	mStateKnown = true;
 	mOnOff = on;
 	NotifyUpdateState(Clusters::OnOff::Id, Clusters::OnOff::Attributes::OnOff::Id, &mOnOff, sizeof(mOnOff));
+}
+
+void EnOceanProvider::OnPower(uint32_t watts)
+{
+	int64_t milliwatts = int64_t(watts) * 1000;
+
+	/* The device reports only changes. */
+	NotifyUpdateState(Clusters::ElectricalPowerMeasurement::Id,
+			  Clusters::ElectricalPowerMeasurement::Attributes::ActivePower::Id, &milliwatts,
+			  sizeof(milliwatts));
 }
 
 /* --- Manager --- */
@@ -274,6 +290,17 @@ CHIP_ERROR EnOceanManager::SendQuery(const EnOceanUserData &data)
 	return CHIP_NO_ERROR;
 }
 
+CHIP_ERROR EnOceanManager::SendPowerQuery(const EnOceanUserData &data)
+{
+	const uint32_t base = tcm_base_id();
+	uint8_t frame[48];
+
+	VerifyOrReturnError(base != 0, CHIP_ERROR_INCORRECT_STATE);
+	size_t n = eep_d2_01_query_measurement(base + data.mOffset, data.mId, 0, true, frame, sizeof(frame));
+	VerifyOrReturnError(n > 0 && tcm_send(frame, n) == 0, CHIP_ERROR_INTERNAL);
+	return CHIP_NO_ERROR;
+}
+
 void EnOceanManager::QueryTimerHandler(k_timer *)
 {
 	DeviceLayer::PlatformMgr().ScheduleWork(QueryStates);
@@ -376,10 +403,17 @@ void EnOceanManager::HandleTelegram(const Telegram &t)
 		if (status.output != EEP_D2_01_OUTPUT_INVALID) {
 			device->mProvider->OnState(status.output > 0);
 		}
+		/* The actuator answers a switch command or a status query with its status: the load may have
+		 * changed, ask for its power. */
+		SendPowerQuery(data);
 	} else if (eep_d2_01_measurement(&e, &measurement)) {
-		if (measurement.unit == 3 /* W */) {
+		/* Units 0..2 are energy (Ws, Wh, kWh), 3 and 4 power (W, kW). */
+		if (measurement.unit == 3 || measurement.unit == 4) {
+			const uint32_t watts = measurement.unit == 4 ? measurement.value * 1000 : measurement.value;
+
 			device->mHasPower = true;
-			device->mPowerW = measurement.value;
+			device->mPowerW = watts;
+			device->mProvider->OnPower(watts);
 		}
 		LOG_DBG("EnOcean: %08X %u %s", t.mSender, measurement.value,
 			eep_d2_01_unit_name(measurement.unit));

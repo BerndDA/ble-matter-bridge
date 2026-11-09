@@ -33,7 +33,7 @@ Only the nRF52840 DK is supported so far, so leave `BOARD` at its default. The `
 | `enocean switch <id> on\|off` | Switch an actuator; Matter follows its confirmation |
 
 - `<id>`: the actuator's EnOcean ID, 8 hex digits, for example `0188EA75`.
-- `eltako`: switched like by a rocker (F6). `d2`: D2-01 actuator, addressed commands, state and power read back.
+- `eltako`: switched like by a rocker (F6). `d2`: D2-01 actuator, addressed commands, state and power read back; its endpoint also has the Electrical Power Measurement cluster.
 - `<offset>`: 0..127; the actuator was taught in to the sender ID TCM base ID + offset.
 - `light` / `plug`: On/Off Light or On/Off Plug-in Unit in Matter.
 - `<name...>`: the starting name in Apple Home; spaces are allowed, umlauts are not (see below).

@@ -45,6 +45,8 @@ public:
 
 	/* State reported by the actuator; reported to Matter if it changed (or the first time). */
 	void OnState(bool on);
+	/* Power of the load measured by a D2-01 actuator; reported to Matter if it changed. */
+	void OnPower(uint32_t watts);
 
 	const EnOceanUserData &GetData() const { return mData; }
 	bool IsStateKnown() const { return mStateKnown; }
@@ -140,6 +142,7 @@ private:
 	void HandleTelegram(const Telegram &t);
 	void UpdateSeen(const Telegram &t, int64_t now);
 	CHIP_ERROR SendQuery(const EnOceanUserData &data);
+	CHIP_ERROR SendPowerQuery(const EnOceanUserData &data);
 	Device *Find(uint32_t id);
 	Device *FindFree();
 
