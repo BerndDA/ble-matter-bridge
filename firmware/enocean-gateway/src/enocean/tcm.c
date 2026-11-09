@@ -228,6 +228,21 @@ static void startup_work_handler(struct k_work *work)
 		}
 		send_common_command(ESP3_CO_RD_IDBASE);
 		k_work_reschedule(&startup_work, K_SECONDS(5));
+		return;
+	}
+
+	/* The version answer can get lost (a CRC error right after the start): ask again a few times.
+	 * Only the base ID is needed to send; the version is for `enocean info` and the status page. */
+	static uint8_t version_retries;
+	bool version_known;
+
+	k_mutex_lock(&info_lock, K_FOREVER);
+	version_known = info.chip_id != 0;
+	k_mutex_unlock(&info_lock);
+	if (!version_known && version_retries < 5) {
+		version_retries++;
+		send_common_command(ESP3_CO_RD_VERSION);
+		k_work_reschedule(&startup_work, K_SECONDS(1));
 	}
 }
 

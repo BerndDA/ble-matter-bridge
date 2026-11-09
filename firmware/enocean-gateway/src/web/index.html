@@ -283,7 +283,7 @@ function render(s) {
 
   // ---- tcm ----
   $('tcm').innerHTML = r.ok
-    ? `<div class="kv"><span>Module</span><span>TCM, app ${esc(r.app)}</span></div>` +
+    ? `<div class="kv"><span>Module</span><span>TCM, app ${r.app === '0.0.0.0' ? 'version unknown' : esc(r.app)}</span></div>` +
       `<div class="kv"><span>Base ID</span><span class="mono">${r.baseId}</span></div>` +
       `<div class="kv"><span>Received</span><span>${r.received} packets` +
         (r.crcErrors || r.overruns ? ` · <span class="warn">${r.crcErrors} CRC errors, ${r.overruns} overruns</span>` : '') + '</span></div>' +
