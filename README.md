@@ -108,7 +108,7 @@ Actuators are added in the shell, with the sender ID offset they were taught in 
 
 ```
 enocean add 0188EA75 eltako 6 light Flur
-enocean add 05017E43 d2 9 plug Küchenradio
+enocean add 05017E43 d2 9 plug Kuechenradio
 ```
 
 | Command | Purpose |
@@ -119,6 +119,8 @@ enocean add 05017E43 d2 9 plug Küchenradio
 | `enocean add <id> eltako\|d2 <offset> light\|plug <name>` | Bridge an actuator; it keeps its endpoint across restarts |
 | `enocean remove <id>` | Remove it from Matter |
 | `enocean switch <id> on\|off` | Switch it from the shell |
+
+All `make` and shell commands of the EnOcean gateway are collected in [firmware/enocean-gateway/COMMANDS.md](firmware/enocean-gateway/COMMANDS.md).
 
 - **Eltako** actuators are switched like by a rocker (one RPS press from the sender ID: `0x30` on, `0x10` off) and confirm with F6 telegrams. Their state is unknown after a restart until they switch once.
 - **D2-01** actuators get addressed commands (set output, status query). The gateway asks for their state at start.
