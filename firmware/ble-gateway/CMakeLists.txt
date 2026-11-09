@@ -1,4 +1,3 @@
-#
 # BLE-to-Matter-over-Thread gateway.
 # Based on the nRF Connect SDK Matter Bridge application
 # (Copyright (c) 2023 Nordic Semiconductor ASA, LicenseRef-Nordic-5-Clause).
