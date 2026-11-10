@@ -16,6 +16,7 @@ Run from the repository root. `APP=enocean-gateway` is required on every call; w
 | `make test APP=enocean-gateway` | ESP3/EEP parser tests on the Mac |
 | `make term` | Open the gateway shell (115200 baud, Ctrl+X quits); close nRF Terminal first |
 | `make identity APP=enocean-gateway` | Show the board's Matter setup code |
+| `make hosts` | List the Matter nodes with hostname, IPv6 addresses and status page (mDNS) |
 | `make netlog` | Show the log over the network (debug builds); `SERIAL=<part>`, `DEBUG=1`, `HOST=<IPv6>` |
 | `make zap APP=enocean-gateway` | Regenerate the data model code after editing `src/default_zap/bridge.zap` |
 | `make clean APP=enocean-gateway` | Delete the build folders and the test build |
@@ -24,7 +25,7 @@ Add `BOARD=promicro-uf2` (Pro Micro with its UF2 bootloader, flashed over USB) o
 
 ## Status page
 
-Debug and release builds serve a read-only status page on port 80. Open `http://<hostname>.local/` in a browser on the home network; this gateway is `http://C291CAB626D64FB6.local/`. The hostname is the gateway's Thread extended MAC address, which Matter registers with the border router (SRP) and the border router announces via mDNS. It stays the same across restarts and changes when the gateway joins a Thread network anew (factory reset). Find it with `dns-sd -B _matter._tcp` and `dns-sd -L <instance> _matter._tcp` (the "can be reached at" line). `http://[<IPv6>]/` works too; the address is in the page's "Thread network" section. The page shows the actuators with their lamps and power, Thread, Matter heap, uptime, firmware, Matter controllers, the TCM and the senders heard; it refreshes every 5 s. `/api/status` returns the same as JSON.
+Debug and release builds serve a read-only status page on port 80. Open `http://<hostname>.local/` in a browser on the home network; this gateway is `http://C291CAB626D64FB6.local/`. The hostname is the gateway's Thread extended MAC address, which Matter registers with the border router (SRP) and the border router announces via mDNS. It stays the same across restarts and changes when the gateway joins a Thread network anew (factory reset). Find it with `make hosts`. `http://[<IPv6>]/` works too; the address is in the page's "Thread network" section. The page shows the actuators with their lamps and power, Thread, Matter heap, uptime, firmware, Matter controllers, the TCM and the senders heard; it refreshes every 5 s. `/api/status` returns the same as JSON.
 
 ## In the gateway shell: `enocean`
 

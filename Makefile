@@ -68,7 +68,7 @@ TARGETS    ?= 18.5,18
 
 NCS := source scripts/ncs-env.sh >/dev/null &&
 
-.PHONY: help build flash flash-erase release release-flash diag diag-flash test zap term measure summary identity netlog clean
+.PHONY: help build flash flash-erase release release-flash diag diag-flash test zap term measure summary identity netlog hosts clean
 
 help: ## List the targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  make %-12s %s\n", $$1, $$2}'
@@ -118,6 +118,9 @@ identity: ## Show the board's Matter setup code (from the UF2 drive, the J-Link,
 
 netlog: ## Show a gateway's log over the network (debug builds); SERIAL=<part>, DEBUG=1, HOST=<IPv6>
 	@python3 scripts/netlog.py $(if $(SERIAL),--serial $(SERIAL)) $(if $(DEBUG),--debug) $(if $(HOST),--host $(HOST))
+
+hosts: ## List the Matter nodes with hostname, IPv6 addresses and status page (mDNS)
+	@python3 scripts/matter-hosts.py
 
 measure: ## Capture diagnostics (needs `make diag-flash`); MINUTES, INTERVAL, THERMOSTAT, TARGETS
 	@$(NCS) python3 scripts/diag-capture.py --minutes $(MINUTES) --interval $(INTERVAL) \
