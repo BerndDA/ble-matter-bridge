@@ -68,14 +68,7 @@ TARGETS    ?= 18.5,18
 
 NCS := source scripts/ncs-env.sh >/dev/null &&
 
-# chip-tool, built by `make chip-tool` from the Matter SDK submodule (pinned release)
-CHIP      := tools/connectedhomeip
-CHIP_TOOL := $(CHIP)/out/darwin-arm64-chip-tool/chip-tool
-# ZAP release matching the pin in $(CHIP)/scripts/setup/zap.json (bump both together)
-CHIP_ZAP     := $(CHIP)/.environment/zap-arm64
-CHIP_ZAP_VER := v2026.05.12-nightly
-
-.PHONY: help build flash flash-erase release release-flash diag diag-flash test zap term measure summary identity netlog chip-tool clean
+.PHONY: help build flash flash-erase release release-flash diag diag-flash test zap term measure summary identity netlog clean
 
 help: ## List the targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  make %-12s %s\n", $$1, $$2}'
@@ -125,18 +118,6 @@ identity: ## Show the board's Matter setup code (from the UF2 drive, the J-Link,
 
 netlog: ## Show a gateway's log over the network (debug builds); SERIAL=<part>, DEBUG=1, HOST=<IPv6>
 	@python3 scripts/netlog.py $(if $(SERIAL),--serial $(SERIAL)) $(if $(DEBUG),--debug) $(if $(HOST),--host $(HOST))
-
-chip-tool: ## Build chip-tool (Matter controller for the Mac) from tools/connectedhomeip; first run takes long
-	@git submodule update --init tools/connectedhomeip
-	@cd $(CHIP) && python3 scripts/checkout_submodules.py --shallow --platform darwin
-	@test -f $(CHIP)/.environment/activate.sh || { cd $(CHIP) && bash -c 'source scripts/bootstrap.sh -p all,darwin >/dev/null'; }
-	@# The bootstrap fetches an x64 zap-cli, which needs Rosetta; use the native arm64 build of the same version
-	@test -x $(CHIP_ZAP)/zap-cli || { mkdir -p $(CHIP_ZAP) && \
-		gh release download $(CHIP_ZAP_VER) -R project-chip/zap -p zap-mac-arm64.zip -D $(CHIP_ZAP) && \
-		unzip -q -o $(CHIP_ZAP)/zap-mac-arm64.zip -d $(CHIP_ZAP) && rm $(CHIP_ZAP)/zap-mac-arm64.zip; }
-	@cd $(CHIP) && bash -c 'source scripts/activate.sh >/dev/null && ZAP_INSTALL_PATH=$(abspath $(CHIP_ZAP)) \
-		./scripts/build/build_examples.py --target darwin-arm64-chip-tool build'
-	@echo "chip-tool: $(CHIP_TOOL)"
 
 measure: ## Capture diagnostics (needs `make diag-flash`); MINUTES, INTERVAL, THERMOSTAT, TARGETS
 	@$(NCS) python3 scripts/diag-capture.py --minutes $(MINUTES) --interval $(INTERVAL) \

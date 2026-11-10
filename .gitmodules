@@ -1,5 +1,0 @@
-[submodule "tools/connectedhomeip"]
-	path = tools/connectedhomeip
-	url = https://github.com/project-chip/connectedhomeip.git
-	shallow = true
-	ignore = untracked
