@@ -136,7 +136,7 @@ All `make` and shell commands of the EnOcean gateway are collected in [firmware/
 
 ## Ready-made firmware
 
-The [releases](https://github.com/BerndDA/ble-matter-bridge/releases) have release builds (no debug logging, watchdog on) for both boards, so no SDK is needed:
+The [releases](https://github.com/BerndDA/enocean-ble-matter-bridge/releases) have release builds (no debug logging, watchdog on) for both boards, so no SDK is needed:
 
 - **Pro Micro / nice!nano clone**: double-tap RST to GND, copy `ble-gateway-<version>-promicro.uf2` to the drive that shows up. Needs UF2 bootloader 0.6.1 or later (see [Bootloader version](#pro-micro-nrf52840)).
 - **nRF52840 DK**: flash `ble-gateway-<version>-dk.hex` with nRF Connect Programmer or `nrfutil device program --firmware <file> --options chip_erase_mode=ERASE_ALL`.
